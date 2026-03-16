@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WiFi Dashboard - Documentation</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+  header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+  header p { color: var(--muted); font-size: 1.1rem; }
+
+  /* Nav */
+  nav {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 1.5rem 0;
+  }
+  nav a {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  nav a:hover { background: var(--accent); color: var(--bg); }
+
+  /* Sections */
+  section { margin-bottom: 3rem; }
+  h2 {
+    font-size: 1.6rem;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 1.15rem;
+    color: var(--green);
+    margin: 1.5rem 0 0.5rem;
+  }
+  p { margin-bottom: 1rem; color: var(--muted); }
+  p strong { color: var(--text); }
+
+  /* Code */
+  pre {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    color: var(--green);
+  }
+  pre code { color: var(--text); }
+  .cmd { color: var(--green); }
+  .comment { color: #6b7280; }
+  .string { color: var(--amber); }
+  .key { color: var(--accent); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+  }
+  th, td {
+    padding: 0.6rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--accent); font-weight: 600; font-size: 0.9rem; }
+  td { color: var(--muted); font-size: 0.9rem; }
+  td code { color: var(--green); font-size: 0.85rem; }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+  .card h4 { color: var(--text); margin-bottom: 0.5rem; font-size: 1rem; }
+  .card p { font-size: 0.88rem; margin-bottom: 0; }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-right: 0.25rem;
+  }
+  .badge-get { background: #064e3b; color: var(--green); }
+  .badge-post { background: #78350f; color: var(--amber); }
+  .badge-del { background: #7f1d1d; color: var(--red); }
+  .badge-ws { background: #1e3a5f; color: var(--accent); }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 2rem 0;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  /* Quick start box */
+  .quickstart {
+    background: linear-gradient(135deg, #0c1824 0%, #111827 100%);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .quickstart h3 { color: var(--accent); margin-top: 0; }
+
+  @media (max-width: 600px) {
+    header h1 { font-size: 1.8rem; }
+    .cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>WiFi Dashboard</h1>
+  <p>Real-time WiFi network scanner, channel analyzer, and signal monitor</p>
+  <nav>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#features">Features</a>
+    <a href="#api">API</a>
+    <a href="#config">Config</a>
+    <a href="#testing">Testing</a>
+    <a href="#structure">Structure</a>
+  </nav>
+</header>
+
+<!-- Quick Start -->
+<section id="quickstart">
+  <h2>Quick Start</h2>
+  <div class="quickstart">
+    <h3>3 commands to start scanning</h3>
+<pre><code><span class="cmd">git clone</span> &lt;repo-url&gt; wifi-dashboard
+<span class="cmd">cd</span> wifi-dashboard
+<span class="cmd">bash</span> launch.sh start</code></pre>
+    <p>Opens <strong>http://localhost:8002</strong> automatically. Click <strong>Scan</strong> or <strong>Demo</strong> to begin.</p>
+  </div>
+
+  <h3>Manual Start</h3>
+<pre><code><span class="cmd">python</span> -m venv .venv
+<span class="cmd">source</span> .venv/bin/activate
+<span class="cmd">pip install</span> -r backend/requirements.txt
+<span class="cmd">python</span> backend/main.py</code></pre>
+
+  <h3>Platform Requirements</h3>
+  <table>
+    <tr><th>Platform</th><th>WiFi Tool</th><th>Fallback</th></tr>
+    <tr><td>macOS</td><td><code>airport</code> (built-in)</td><td>Simulate mode</td></tr>
+    <tr><td>Linux</td><td><code>nmcli</code></td><td><code>iw</code></td></tr>
+    <tr><td>Raspberry Pi</td><td><code>nmcli</code> or <code>iw</code></td><td>Simulate mode</td></tr>
+  </table>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <h2>Features</h2>
+  <div class="cards">
+    <div class="card">
+      <h4>Scanner</h4>
+      <p>Discover 2.4 and 5 GHz networks. Filter by SSID, signal strength, or band. Export to CSV or HTML.</p>
+    </div>
+    <div class="card">
+      <h4>Channel Analyzer</h4>
+      <p>Visual 2.4/5 GHz congestion maps. Overlap scoring. Best-channel recommendations for your router.</p>
+    </div>
+    <div class="card">
+      <h4>Signal Monitor</h4>
+      <p>Live RSSI chart for any network. Min/Max/Avg stats. Adjustable history window. Data export.</p>
+    </div>
+    <div class="card">
+      <h4>7 Radar Styles</h4>
+      <p>Military, Tactical, Thermal, Sonar, Stars, Matrix, Submarine. Canvas-animated with signal-to-distance mapping.</p>
+    </div>
+    <div class="card">
+      <h4>Achievements</h4>
+      <p>20 badges, trading cards, missions, XP and levels. Gamified network discovery.</p>
+    </div>
+    <div class="card">
+      <h4>Hacker Lab</h4>
+      <p>Network autopsy, packet storm, time travel scanner, RF waterfall, terminal view.</p>
+    </div>
+    <div class="card">
+      <h4>Command Center</h4>
+      <p>Analytics, vendor charts, RSSI histogram, leaderboard, heatmap, co-location graph, stealth meter.</p>
+    </div>
+    <div class="card">
+      <h4>Vendor Lookup</h4>
+      <p>260+ OUI prefixes. Identify TP-Link, Netgear, Apple, Ubiquiti, Cisco, and more by MAC address.</p>
+    </div>
+  </div>
+
+  <h3>Themes</h3>
+  <p>8 visual themes: <strong>Mosque, Zellige, Andalus, Riad, Medina, Space, Jungle, Robot</strong></p>
+
+  <h3>Languages</h3>
+  <p>English, French, Arabic (RTL support)</p>
+</section>
+
+<!-- API Reference -->
+<section id="api">
+  <h2>API Reference</h2>
+
+  <h3><span class="badge badge-ws">WS</span> WebSocket <code>/ws</code></h3>
+  <p>Connect and send JSON messages for real-time scanning and analysis.</p>
+
+  <table>
+    <tr><th>Send</th><th>Receive</th><th>Description</th></tr>
+    <tr><td><code>{"type":"hello"}</code></td><td><code>hello_ack</code></td><td>Server handshake</td></tr>
+    <tr><td><code>{"type":"scan", "simulate":true}</code></td><td><code>scan_result</code></td><td>Scan for networks</td></tr>
+    <tr><td><code>{"type":"scan_stop"}</code></td><td>&mdash;</td><td>Stop active scan</td></tr>
+    <tr><td><code>{"type":"channel_analysis"}</code></td><td><code>channel_analysis</code></td><td>Full congestion data</td></tr>
+    <tr><td><code>{"type":"best_channel", "band":"2.4GHz"}</code></td><td><code>best_channel</code></td><td>Best channel + reason</td></tr>
+  </table>
+
+  <h3>Scan Parameters</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>duration</code></td><td>float</td><td>5.0</td><td>Scan duration in seconds</td></tr>
+    <tr><td><code>ssid_filter</code></td><td>string</td><td>""</td><td>Filter by SSID substring</td></tr>
+    <tr><td><code>rssi_min</code></td><td>int</td><td>-100</td><td>Minimum signal strength</td></tr>
+    <tr><td><code>band</code></td><td>string</td><td>"all"</td><td>"all", "2.4GHz", or "5GHz"</td></tr>
+    <tr><td><code>simulate</code></td><td>bool</td><td>false</td><td>Use simulated data</td></tr>
+  </table>
+
+  <h3>Network Object</h3>
+<pre><code>{
+  <span class="key">"ssid"</span>:         <span class="string">"Home-WiFi"</span>,
+  <span class="key">"bssid"</span>:        <span class="string">"14:CC:20:A1:B2:C3"</span>,
+  <span class="key">"rssi"</span>:         -65,
+  <span class="key">"channel"</span>:      6,
+  <span class="key">"frequency"</span>:    2437,
+  <span class="key">"band"</span>:         <span class="string">"2.4GHz"</span>,
+  <span class="key">"security"</span>:     <span class="string">"WPA2"</span>,
+  <span class="key">"bandwidth"</span>:    <span class="string">"20MHz"</span>,
+  <span class="key">"vendor"</span>:       <span class="string">"TP-Link"</span>,
+  <span class="key">"hidden"</span>:       false,
+  <span class="key">"rssi_history"</span>: [-65, -63, -67]
+}</code></pre>
+
+  <h3>REST Endpoints</h3>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/status</code></td><td>Server status, scan state, version</td></tr>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/logs/csv</code></td><td>Download CSV log file</td></tr>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/logs/json</code></td><td>Download JSONL log file</td></tr>
+    <tr><td><span class="badge badge-del">DEL</span></td><td><code>/api/logs</code></td><td>Clear all log files</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/log_format/{fmt}</code></td><td>Set format: csv, json, or both</td></tr>
+  </table>
+</section>
+
+<!-- Configuration -->
+<section id="config">
+  <h2>Configuration</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>PORT</code></td><td>8002</td><td>Server port</td></tr>
+    <tr><td><code>WIFI_PORT</code></td><td>8002</td><td>Alternative port variable</td></tr>
+  </table>
+
+<pre><code><span class="comment"># Change port</span>
+<span class="cmd">WIFI_PORT=9000 bash</span> launch.sh start</code></pre>
+
+  <h3>Launcher Commands</h3>
+  <table>
+    <tr><th>Command</th><th>Description</th></tr>
+    <tr><td><code>bash launch.sh start</code></td><td>Install deps + start server + open browser</td></tr>
+    <tr><td><code>bash launch.sh stop</code></td><td>Stop the server</td></tr>
+    <tr><td><code>bash launch.sh status</code></td><td>Check if server is running</td></tr>
+    <tr><td><code>bash launch.sh install</code></td><td>Install/update Python deps only</td></tr>
+    <tr><td><code>bash launch.sh test</code></td><td>Run the test suite</td></tr>
+    <tr><td><code>bash launch.sh check</code></td><td>Check WiFi tools + Python version</td></tr>
+    <tr><td><code>bash launch.sh menu</code></td><td>Interactive TUI menu</td></tr>
+  </table>
+</section>
+
+<!-- Testing -->
+<section id="testing">
+  <h2>Testing</h2>
+<pre><code><span class="comment"># Install test dependencies</span>
+<span class="cmd">pip install</span> pytest pytest-asyncio httpx
+
+<span class="comment"># Run all 60 tests</span>
+<span class="cmd">python</span> -m pytest tests/ -v
+
+<span class="comment"># With coverage report</span>
+<span class="cmd">python</span> -m pytest tests/ --cov=backend</code></pre>
+
+  <table>
+    <tr><th>Module</th><th>Tests</th><th>Covers</th></tr>
+    <tr><td><code>test_wifi_manager.py</code></td><td>24</td><td>Scanning, parsing, filters, simulate, RSSI history</td></tr>
+    <tr><td><code>test_channel_analyzer.py</code></td><td>18</td><td>Overlap scoring, best channel, congestion analysis</td></tr>
+    <tr><td><code>test_logger.py</code></td><td>8</td><td>CSV/JSONL logging, format switching</td></tr>
+    <tr><td><code>test_api.py</code></td><td>10</td><td>REST endpoints, WebSocket messages</td></tr>
+  </table>
+</section>
+
+<!-- Project Structure -->
+<section id="structure">
+  <h2>Project Structure</h2>
+<pre><code>wifi-dashboard/
+  backend/
+    main.py              <span class="comment"># FastAPI server + WebSocket</span>
+    wifi_manager.py      <span class="comment"># Cross-platform WiFi scanner</span>
+    channel_analyzer.py  <span class="comment"># 2.4/5 GHz congestion engine</span>
+    logger.py            <span class="comment"># Dual CSV/JSONL logger</span>
+    oui_lookup.py        <span class="comment"># MAC vendor database (260+)</span>
+    requirements.txt
+  frontend/
+    index.html           <span class="comment"># Single-page app</span>
+    wifi.js              <span class="comment"># Core scanner + radar client</span>
+    wifi.css             <span class="comment"># WiFi-specific styles</span>
+    channel.js           <span class="comment"># Channel analyzer UI</span>
+    channel.css          <span class="comment"># Channel styles</span>
+    badges.js            <span class="comment"># Achievements + trading cards</span>
+    features.js          <span class="comment"># Hacker Lab + Command Center</span>
+    script.js            <span class="comment"># Themes, i18n, help system</span>
+    style.css            <span class="comment"># Base styles</span>
+    radar-styles.css     <span class="comment"># 7 radar visual themes</span>
+  tests/
+    conftest.py          <span class="comment"># Shared test fixtures</span>
+    test_wifi_manager.py
+    test_channel_analyzer.py
+    test_logger.py
+    test_api.py
+  docs/
+    index.html           <span class="comment"># This page</span>
+    START-HERE.md        <span class="comment"># Beginner guide</span>
+    HOWTO.md             <span class="comment"># Task-based guide</span>
+  launch.sh              <span class="comment"># TUI launcher</span>
+  README.md</code></pre>
+</section>
+
+<footer>
+  WiFi Dashboard &mdash; MIT License
+</footer>
+
+</div>
+</body>
+</html>
