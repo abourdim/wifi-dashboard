@@ -143,7 +143,7 @@ class WiFiManager:
                             SSID BSSID             RSSI CHANNEL HT CC SECURITY
                         MyWiFi aa:bb:cc:dd:ee:ff -65  6       Y  -- WPA2(PSK/AES/AES)
         """
-        lines = output.strip().split("\n")
+        lines = [l for l in output.split("\n") if l.strip()]
         if len(lines) < 2:
             return []
 
