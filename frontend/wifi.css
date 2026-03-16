@@ -1,0 +1,491 @@
+/* ═══════════════════════════════════════════
+   wifi.css  v1.0 — extends Workshop-DIY style.css
+   WiFi Dashboard styles (adapted from ble.css)
+   ═══════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════
+   SECTION COLOR ACCENTS
+   Each major section gets a unique color for
+   left border, header icon tint, and subtle bg
+   ═══════════════════════════════════════════ */
+
+/* Scanner — cyan/blue */
+.card.section-scanner {
+  border-left: 3px solid #38bdf8 !important;
+  background: linear-gradient(90deg, rgba(56,189,248,.06), transparent 40%), var(--panel);
+}
+.section-scanner .card-title .icon { color: #38bdf8; }
+
+/* Network Details — steel-blue (HERO card — highest visual priority) */
+details.section-details > summary { border-left: 4px solid #64748b !important; font-size:1.05em; }
+.card.section-details {
+  border-left: 4px solid #64748b !important;
+  background: linear-gradient(90deg, rgba(100,116,139,.06), transparent 40%), var(--panel);
+}
+.card.section-details-hero {
+  background: linear-gradient(180deg, rgba(100,116,139,.14) 0%, rgba(100,116,139,.04) 30%, var(--panel) 100%) !important;
+  border-top: 2px solid #64748b !important;
+  box-shadow: 0 0 20px rgba(100,116,139,.08), inset 0 1px 0 rgba(100,116,139,.15);
+}
+details.section-details > summary .icon { color: #64748b; }
+
+/* Scanner — collapsible */
+details.section-scanner > summary { border-left: 3px solid #38bdf8 !important; }
+details.section-scanner > summary .icon { color: #38bdf8; }
+
+/* Monitor — emerald/green */
+details.section-monitor > summary { border-left: 3px solid #34d399 !important; }
+.card.section-monitor {
+  border-left: 3px solid #34d399 !important;
+  background: linear-gradient(90deg, rgba(52,211,153,.06), transparent 40%), var(--panel);
+}
+details.section-monitor > summary .icon { color: #34d399; }
+
+/* Channel Analyzer — purple/violet */
+details.section-channel > summary { border-left: 3px solid #a78bfa !important; }
+.card.section-channel {
+  border-left: 3px solid #a78bfa !important;
+  background: linear-gradient(90deg, rgba(167,139,250,.06), transparent 40%), var(--panel);
+}
+details.section-channel > summary .icon { color: #a78bfa; }
+
+/* Debug — dim gray */
+details.section-debug > summary { border-left: 3px solid #6b7280 !important; }
+.card.section-debug {
+  border-left: 3px solid #6b7280 !important;
+  background: linear-gradient(90deg, rgba(107,114,128,.06), transparent 40%), var(--panel);
+}
+details.section-debug > summary .icon { color: #6b7280; }
+
+/* Light theme — slightly stronger tints */
+.light-theme .card.section-scanner { background: linear-gradient(90deg, rgba(56,189,248,.08), transparent 40%), var(--panel); }
+.light-theme .card.section-details { background: linear-gradient(90deg, rgba(100,116,139,.08), transparent 40%), var(--panel); }
+.light-theme .card.section-details-hero { background: linear-gradient(180deg, rgba(100,116,139,.12) 0%, rgba(100,116,139,.03) 30%, var(--panel) 100%) !important; }
+.light-theme .card.section-monitor { background: linear-gradient(90deg, rgba(52,211,153,.08), transparent 40%), var(--panel); }
+.light-theme .card.section-channel { background: linear-gradient(90deg, rgba(167,139,250,.08), transparent 40%), var(--panel); }
+
+/* ── scan controls ── */
+.wifi-scan-controls { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+
+/* ── filter row ── */
+.wifi-filter-row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+
+/* ── band filter buttons ── */
+.wifi-band-filter { display:flex; gap:2px; }
+.wifi-band-btn {
+  background:transparent; border:1px solid var(--border,rgba(255,255,255,.12));
+  border-radius:4px; color:var(--text-dim,#7a8aaa); cursor:pointer;
+  font-size:.72rem; font-family:'Orbitron',monospace; padding:4px 10px;
+  transition:all .18s;
+}
+.wifi-band-btn:hover { border-color:var(--accent,#00aaff); color:var(--text,#e0e8ff); }
+.wifi-band-btn.active { background:var(--accent,#00aaff); border-color:var(--accent,#00aaff); color:#000; font-weight:700; }
+
+/* ═══════════════════════════════════════════
+   RADAR VIEW
+   Keep all .ble-radar-* classes for radar-styles.css
+   compatibility. These are identical to ble.css.
+   ═══════════════════════════════════════════ */
+
+.ble-radar-view { padding:12px 0; display:flex; flex-direction:column; align-items:center; }
+
+.ble-radar-container { position:relative; width:100%; max-width:420px; aspect-ratio:1; }
+
+.ble-radar-circle {
+  position:relative; width:100%; height:100%;
+  border-radius:50%;
+  background: radial-gradient(circle, rgba(0,170,255,.03) 0%, transparent 70%);
+  border: 1px solid var(--border, rgba(255,255,255,.1));
+  overflow:hidden;
+}
+
+/* Static range rings */
+.ble-radar-ring {
+  position:absolute; border-radius:50%;
+  border: 1px dashed var(--border, rgba(255,255,255,.12));
+  top:50%; left:50%; transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+.ble-ring-1 { width:33%; height:33%; }
+.ble-ring-2 { width:63%; height:63%; }
+.ble-ring-3 { width:90%; height:90%; }
+
+/* Ring labels */
+.ble-radar-label {
+  position:absolute; left:52%; transform:translateX(-50%);
+  font-size:.55rem; color:var(--text-muted,#556); opacity:.5;
+  text-transform:uppercase; letter-spacing:.05em;
+  pointer-events:none;
+}
+.ble-label-1 { top: calc(50% - 17.5%); }
+.ble-label-2 { top: calc(50% - 32.5%); }
+.ble-label-3 { top: calc(50% - 46%); }
+
+/* Sweep line */
+.ble-radar-sweep {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  border-radius:50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(0,170,255,.08) 20deg,
+    rgba(0,170,255,.02) 40deg,
+    transparent 60deg
+  );
+  animation: radarSweep 3s linear infinite;
+  pointer-events:none;
+}
+
+/* Center dot */
+.ble-radar-center {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-size:1.2rem; z-index:2;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+/* Device blip */
+.ble-radar-blip {
+  position:absolute;
+  transform:translate(-50%,-50%);
+  z-index:3; cursor:pointer;
+  animation: radarBlipIn .5s ease forwards;
+  text-align:center;
+}
+
+.ble-radar-dot {
+  width:10px; height:10px; border-radius:50%;
+  margin:0 auto 3px;
+  box-shadow: 0 0 6px currentColor, 0 0 12px currentColor;
+  animation: radarBlipPulse 2s ease-in-out infinite;
+}
+.ble-radar-dot.dot-strong { width:14px; height:14px; }
+.ble-radar-dot.dot-weak   { width:7px;  height:7px; opacity:.6; }
+
+.ble-radar-blip-name {
+  font-size:.6rem; font-weight:700;
+  color:var(--text,#e0e8ff);
+  max-width:80px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap;
+  text-shadow: 0 1px 4px rgba(0,0,0,.8);
+  line-height:1.1;
+}
+
+.ble-radar-blip-rssi {
+  font-family:'Orbitron',monospace;
+  font-size:.5rem; color:var(--text-muted,#7a8aaa);
+  text-shadow: 0 1px 4px rgba(0,0,0,.8);
+}
+
+@keyframes radarBlipIn {
+  from { opacity:0; transform:translate(-50%,-50%) scale(0); }
+  to   { opacity:1; transform:translate(-50%,-50%) scale(1); }
+}
+
+@keyframes radarBlipPulse {
+  0%,100% { opacity:.7; transform:scale(1); }
+  50%     { opacity:1;  transform:scale(1.3); }
+}
+
+/* Crosshair lines */
+.ble-radar-circle::before,
+.ble-radar-circle::after {
+  content:''; position:absolute; pointer-events:none;
+  background: var(--border, rgba(255,255,255,.08));
+}
+.ble-radar-circle::before {
+  top:0; bottom:0; left:50%; width:1px;
+}
+.ble-radar-circle::after {
+  left:0; right:0; top:50%; height:1px;
+}
+
+/* Toggle button active state */
+#radarToggleBtn.active {
+  background: var(--accent); color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* ── radar proximity legend ── */
+.ble-radar-legend {
+  display:flex; justify-content:center; gap:14px; padding:6px 0 2px;
+  font-size:.6rem; color:var(--text-muted,#7a8aaa);
+}
+.ble-legend-item { display:flex; align-items:center; gap:3px; }
+.ble-legend-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+
+/* ── radar detail card ── */
+.ble-radar-detail {
+  margin:8px auto; max-width:380px; padding:10px 14px;
+  background:var(--card-alt,rgba(255,255,255,.04));
+  border:1px solid var(--border,rgba(255,255,255,.08));
+  border-radius:8px; font-size:.82rem;
+}
+.ble-radar-detail .detail-name { font-weight:700; font-size:.92rem; color:var(--text,#e0e8ff); }
+.ble-radar-detail .detail-addr { font-family:'Orbitron',monospace; font-size:.68rem; color:var(--text-dim,#7a8aaa); }
+.ble-radar-detail .detail-vendor { font-size:.7rem; color:var(--text-muted,#556); margin-top:2px; }
+.ble-radar-detail .detail-row { display:flex; align-items:center; gap:10px; margin-top:6px; }
+
+/* ── inputs ── */
+.wifi-input {
+  background: var(--bg-deep, #06071a);
+  border: 1px solid var(--accent, #00aaff);
+  border-radius: 6px;
+  color: var(--text, #e0e8ff);
+  font-family: 'Orbitron', monospace;
+  font-size: .78rem;
+  padding: 6px 10px;
+  flex: 1; min-width: 120px;
+  transition: border-color .2s;
+}
+.wifi-input:focus { outline:none; border-color: var(--accent2, #ff9900); box-shadow: 0 0 6px var(--accent2, #ff9900); }
+.wifi-input-sm   { max-width:80px; flex: 0 0 80px; }
+
+/* ── device / network list ── */
+.wifi-device-list { display:flex; flex-direction:column; gap:8px; padding:10px 0; min-height:48px; }
+
+/* ── vendor accordion groups ── */
+.vendor-group { margin-bottom:4px; --vendor-color: var(--accent); }
+.vendor-group > summary {
+  font-size:.78rem; padding:8px 12px; gap:6px;
+  border-left: 3px solid var(--vendor-color);
+}
+.vendor-group > summary::before { color: var(--vendor-color) !important; }
+.vendor-group > summary .badge {
+  margin-inline-start:auto;
+  border-color: var(--vendor-color);
+}
+.vendor-group > summary .badge strong { color: var(--vendor-color); }
+.vendor-group-body {
+  display:flex; flex-direction:column; gap:6px; padding:8px 4px;
+  border-left: 2px solid color-mix(in srgb, var(--vendor-color) 25%, transparent);
+  margin-left: 6px;
+}
+.vendor-group-body .wifi-device-row:nth-child(even) { background:rgba(255,255,255,.03); }
+.light-theme .vendor-group-body .wifi-device-row:nth-child(even) { background:rgba(0,0,0,.03); }
+.wifi-empty { text-align:center; color:var(--text-dim, #556); font-size:.85rem; padding:16px; font-style:italic; }
+
+/* ── device / network row ── */
+.wifi-device-row {
+  display:flex; align-items:center; gap:10px;
+  background: var(--card-alt, rgba(255,255,255,.04));
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+  border-radius:8px; padding:10px 14px;
+  transition: border-color .2s, background .2s; cursor:pointer;
+}
+.wifi-device-row:hover    { border-color: var(--accent, #00aaff); background: rgba(0,170,255,.07); }
+.wifi-device-row.wifi-selected { border-color: var(--success, #22cc88); background: rgba(34,204,136,.07); }
+.wifi-device-name { font-weight:700; font-size:.92rem; flex:1; color:var(--text,#e0e8ff); }
+.wifi-device-addr { font-family:'Orbitron',monospace; font-size:.7rem; color:var(--text-dim,#7a8aaa); }
+.wifi-rssi        { font-family:'Orbitron',monospace; font-size:.75rem; color:var(--accent,#00aaff); min-width:60px; text-align:right; }
+.wifi-rssi-bar    { width:48px; height:6px; background:rgba(255,255,255,.1); border-radius:3px; overflow:hidden; }
+.wifi-rssi-fill   { height:100%; background:var(--accent,#00aaff); border-radius:3px; transition:width .4s; }
+
+/* ── network details panel ── */
+.wifi-network-details { padding:8px 0; display:flex; flex-direction:column; gap:8px; }
+
+/* ── two-col layout ── */
+.wifi-row  { display:flex; gap:12px; flex-wrap:wrap; }
+.wifi-col  { flex:1; min-width:160px; display:flex; flex-direction:column; gap:4px; }
+
+/* ── chart ── */
+.wifi-chart-wrap    { position:relative; height:260px; padding:8px 0; }
+.wifi-chart-options { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding-bottom:4px; }
+.wifi-stats-row     { display:flex; flex-wrap:wrap; gap:16px; padding:8px 0 4px; }
+.wifi-stat          { font-size:.8rem; color:var(--text-dim,#7a8aaa); }
+.wifi-stat strong   { font-family:'Orbitron',monospace; color:var(--accent,#00aaff); }
+
+/* ═══════════════════════════════════════════
+   WIFI-SPECIFIC ELEMENTS
+   ═══════════════════════════════════════════ */
+
+/* ── channel badge (small pill showing channel number) ── */
+.wifi-channel-badge {
+  display:inline-block;
+  font-family:'Orbitron',monospace;
+  font-size:.62rem; font-weight:700;
+  padding:2px 7px; border-radius:10px;
+  background:rgba(167,139,250,.15);
+  color:#a78bfa;
+  letter-spacing:.04em;
+  white-space:nowrap;
+}
+
+/* ── band pill (2.4G / 5G indicator) ── */
+.wifi-band-pill {
+  display:inline-block;
+  font-family:'Orbitron',monospace;
+  font-size:.58rem; font-weight:700;
+  padding:2px 6px; border-radius:8px;
+  letter-spacing:.04em;
+  white-space:nowrap;
+}
+.wifi-band-pill[data-band="2.4"],
+.wifi-band-pill.band-24 {
+  background:rgba(56,189,248,.15);
+  color:#38bdf8;
+}
+.wifi-band-pill[data-band="5"],
+.wifi-band-pill.band-5 {
+  background:rgba(34,197,94,.15);
+  color:#22c55e;
+}
+
+/* ── security icon ── */
+.wifi-security-icon {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:20px; height:20px; border-radius:4px;
+  font-size:.7rem; flex-shrink:0;
+}
+.wifi-security-icon.locked {
+  color:#22c55e;
+}
+.wifi-security-icon.open-net {
+  color:#ef4444;
+}
+
+/* ── security level colors ── */
+.wifi-security-open {
+  color:#ef4444 !important;
+  background:rgba(239,68,68,.1);
+  border-color:rgba(239,68,68,.25);
+}
+
+.wifi-security-wep {
+  color:#f97316 !important;
+  background:rgba(249,115,22,.1);
+  border-color:rgba(249,115,22,.25);
+}
+
+.wifi-security-wpa {
+  color:#eab308 !important;
+  background:rgba(234,179,8,.1);
+  border-color:rgba(234,179,8,.25);
+}
+
+.wifi-security-wpa2 {
+  color:#22c55e !important;
+  background:rgba(34,197,94,.1);
+  border-color:rgba(34,197,94,.25);
+}
+
+.wifi-security-wpa3 {
+  color:#10b981 !important;
+  background:rgba(16,185,129,.15);
+  border-color:rgba(16,185,129,.3);
+  text-shadow: 0 0 6px rgba(16,185,129,.3);
+}
+
+/* Security badge pills */
+.wifi-security-badge {
+  display:inline-block;
+  font-family:'Orbitron',monospace;
+  font-size:.58rem; font-weight:700;
+  padding:2px 6px; border-radius:4px;
+  letter-spacing:.04em;
+  border:1px solid;
+}
+.wifi-security-badge.wifi-security-open  { color:#ef4444; background:rgba(239,68,68,.1); border-color:rgba(239,68,68,.25); }
+.wifi-security-badge.wifi-security-wep   { color:#f97316; background:rgba(249,115,22,.1); border-color:rgba(249,115,22,.25); }
+.wifi-security-badge.wifi-security-wpa   { color:#eab308; background:rgba(234,179,8,.1); border-color:rgba(234,179,8,.25); }
+.wifi-security-badge.wifi-security-wpa2  { color:#22c55e; background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.25); }
+.wifi-security-badge.wifi-security-wpa3  { color:#10b981; background:rgba(16,185,129,.15); border-color:rgba(16,185,129,.3); }
+
+/* ── hidden SSID style ── */
+.wifi-hidden {
+  opacity:.5;
+  font-style:italic;
+}
+.wifi-hidden .wifi-device-name {
+  color:var(--text-dim,#7a8aaa);
+}
+.wifi-hidden .wifi-device-name::before {
+  content:'[Hidden] ';
+  font-size:.7rem;
+  color:var(--text-muted,#556);
+}
+
+/* ── history badge ── */
+.wifi-history-badge {
+  font-family:'Orbitron',monospace; font-size:.6rem; font-weight:700;
+  background:rgba(0,170,255,.15); color:var(--accent,#00aaff);
+  padding:1px 6px; border-radius:8px; margin-inline-start:6px;
+  vertical-align:middle;
+}
+
+/* ── live badge ── */
+.wifi-badge { background:var(--error,#ff4455); color:#fff; font-family:'Orbitron',monospace; font-size:.65rem; font-weight:700; letter-spacing:.08em; padding:2px 7px; border-radius:4px; animation:wifiBlink 1s step-end infinite; }
+@keyframes wifiBlink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── channel analyzer ── */
+.wifi-channel-canvas-wrap {
+  position:relative; height:200px; padding:4px 0;
+}
+.wifi-channel-canvas-wrap canvas { width:100%; height:100%; }
+
+.wifi-best-channel {
+  display:flex; align-items:center; gap:8px; padding:6px 4px;
+}
+
+/* ── favorite star ── */
+.wifi-fav-btn {
+  background:none; border:none; cursor:pointer; font-size:1rem;
+  padding:0 4px; line-height:1; color:var(--text-dim,#556);
+  transition:color .2s, transform .2s; flex-shrink:0;
+}
+.wifi-fav-btn:hover { transform:scale(1.2); }
+.wifi-fav-btn.fav-active { color:#fbbf24; }
+
+/* ── info-tip icons ── */
+.info-tip { font-size:.65rem; color:var(--text-muted); opacity:.4; cursor:help; margin-inline-start:4px; transition:opacity .2s; }
+.info-tip:hover { opacity:1; color:var(--accent); }
+
+/* ── device list collapse transition ── */
+#deviceList { transition: max-height .3s ease, opacity .3s ease; }
+
+/* ── toolbar bottom bar ── */
+.wifi-toolbar { padding:8px 14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; border-top:1px solid var(--border,rgba(255,255,255,.08)); }
+
+/* ── signal strength colors (applied to RSSI text and bars) ── */
+.wifi-signal-excellent { color:#22c55e !important; }
+.wifi-signal-good      { color:#84cc16 !important; }
+.wifi-signal-fair      { color:#eab308 !important; }
+.wifi-signal-weak      { color:#f97316 !important; }
+.wifi-signal-dead      { color:#ef4444 !important; }
+
+.wifi-rssi-fill.signal-excellent { background:#22c55e; }
+.wifi-rssi-fill.signal-good      { background:#84cc16; }
+.wifi-rssi-fill.signal-fair      { background:#eab308; }
+.wifi-rssi-fill.signal-weak      { background:#f97316; }
+.wifi-rssi-fill.signal-dead      { background:#ef4444; }
+
+/* ── format toggle ── */
+.wifi-format-toggle { display:flex; gap:4px; }
+.wifi-fmt-btn { background:transparent; border:1px solid var(--border,rgba(255,255,255,.12)); border-radius:4px; color:var(--text-dim,#7a8aaa); cursor:pointer; font-size:.7rem; font-family:'Orbitron',monospace; padding:3px 7px; transition:all .18s; }
+.wifi-fmt-btn:hover, .wifi-fmt-btn.active { background:var(--accent,#00aaff); border-color:var(--accent,#00aaff); color:#000; }
+
+/* ── mono text ── */
+.wifi-mono { font-family:'Orbitron',monospace; font-size:.82rem; color:var(--text,#e0e8ff); word-break:break-all; }
+.wifi-dim  { color:var(--text-dim,#556); }
+
+/* ── proximity sound button active ── */
+#proxSoundBtn.active { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+
+/* ── debug log panel ── */
+.debug-log-panel {
+  background:var(--bg-deep,#06071a);
+  border:1px solid var(--border,rgba(255,255,255,.07));
+  border-radius:6px;
+  margin:8px 0;
+}
+
+/* ── log search ── */
+.log-search-wrap { margin-left:auto; }
+
+/* ── responsive ── */
+@media (max-width:640px) {
+  .wifi-filter-row, .wifi-row, .wifi-chart-options { flex-direction:column; align-items:stretch; }
+  .wifi-input-sm { max-width:100%; flex:1; }
+  .wifi-chart-wrap { height:200px; }
+  .wifi-band-filter { flex-wrap:wrap; }
+  .wifi-channel-canvas-wrap { height:160px; }
+}

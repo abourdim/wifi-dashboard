@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+coverage_html/
+logs/*.csv
+logs/*.jsonl
+server.log
+.server.pid
+.claude/

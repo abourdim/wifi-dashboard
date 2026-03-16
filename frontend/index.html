@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="robot">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WiFi Dashboard — Workshop DIY</title>
+  <meta name="description" content="WiFi Dashboard — scan, analyze, monitor wireless networks." />
+  <meta name="author" content="Workshop-DIY — abourdim" />
+  <meta property="og:title" content="WiFi Dashboard — Workshop DIY" />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#08091a" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Righteous&family=Tajawal:wght@400;500;700&family=Bangers&family=Orbitron:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="wifi.css?v=1" />
+  <link rel="stylesheet" href="channel.css?v=1" />
+  <link rel="stylesheet" href="badges.css?v=2" />
+  <link rel="stylesheet" href="radar-styles.css?v=2" />
+  <link rel="stylesheet" href="features.css?v=2" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ══════ SPLASH ══════ -->
+<div class="splash" id="splash" onclick="dismissSplash()">
+  <!-- Radar rings -->
+  <div class="splash-radar">
+    <div class="radar-ring ring-1"></div>
+    <div class="radar-ring ring-2"></div>
+    <div class="radar-ring ring-3"></div>
+    <div class="radar-sweep"></div>
+    <!-- WiFi blips discovered by radar -->
+    <div class="radar-blip blip-1"></div>
+    <div class="radar-blip blip-2"></div>
+    <div class="radar-blip blip-3"></div>
+    <div class="radar-blip blip-4"></div>
+    <div class="radar-blip blip-5"></div>
+  </div>
+  <div class="splash-inner">
+    <div class="splash-logo" id="splashLogo"></div>
+    <div class="splash-title" id="splashTitle"></div>
+    <div class="splash-sub" data-i18n="subtitle">📶 scan · 📊 analyze · 🔒 secure</div>
+    <div class="splash-hint" data-i18n="splashHint">tap to skip</div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="deco-band top-band" aria-hidden="true"></div>
+  <div class="rows-container">
+
+    <!-- ══════ HEADER ══════ -->
+    <div class="header">
+      <div class="bismillah" aria-hidden="true">
+        <span class="bism-ornament">&#x2726;</span>
+        بِسْمِ ٱللَّٰهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
+        <span class="bism-ornament">&#x2726;</span>
+      </div>
+      <div class="title-block">
+        <div class="logo-wrap" id="logoWrap"></div>
+        <div>
+          <h1 data-i18n="title">WiFi Dashboard</h1>
+          <div class="subtitle" data-i18n="subtitle">📶 scan · 📊 analyze · 🔒 secure</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="header-buttons">
+          <button id="helpBtn"     class="btn-icon-only" aria-label="Help">❓</button>
+          <button id="settingsBtn" class="btn-icon-only" aria-label="Settings">⚙️</button>
+          <button id="logBtn"      class="btn-icon-only" aria-label="Activity Log">📜</button>
+          <button class="btn-icon-only" aria-label="Clear cache & reload" onclick="clearCacheReload()" title="Clear cache &amp; reload">🔄</button>
+        </div>
+        <div class="status-pill" id="statusPill">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText" data-i18n="disconnected">Disconnected</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ CARD 1 — SCANNER (open by default) ══════ -->
+    <details class="collapsible section-scanner" open>
+      <summary><span class="icon">📶</span> <span data-i18n="scanTitle">WiFi Scanner</span></summary>
+      <div class="card section-scanner" id="mainCard">
+        <div class="card-header">
+          <div>
+            <div class="card-title"><span class="icon">📶</span> <span data-i18n="scanTitle">WiFi Scanner</span><span class="info-tip" title="Scans for nearby wireless networks and displays signal strength, channel, and security info">ⓘ</span> <span id="historyBadge" class="wifi-history-badge" style="display:none"></span></div>
+            <div class="card-subtitle"><span data-i18n="scanDesc">Discover nearby wireless networks</span> <span class="version-tag">v1.0</span></div>
+          </div>
+          <div class="wifi-scan-controls">
+            <button id="scanBtn"     class="button primary" onclick="wifiScan()"><span class="btn-icon">🔍</span> <span data-i18n="scanStart">Scan</span></button>
+            <button id="stopScanBtn" class="button fire-btn" onclick="wifiStopScan()" style="display:none"><span class="btn-icon">⛔</span> <span data-i18n="scanStop">Stop</span></button>
+            <button id="radarToggleBtn" class="button btn-sm" onclick="toggleRadarView()" title="Radar view">📡</button>
+            <button class="button btn-sm" onclick="exportDevicesCSV()" title="Export to CSV">📥</button>
+            <button class="button btn-sm" onclick="exportScanReport()" title="Export HTML report">📊</button>
+            <button class="button btn-sm" onclick="simulateDevices()" title="Demo mode">🎲</button>
+          </div>
+        </div>
+        <div class="control-section">
+          <div class="wifi-filter-row">
+            <label class="sidebar-label" data-i18n="filterLabel">Filter by SSID</label>
+            <input id="deviceNameFilter" type="text" class="wifi-input" placeholder="MyNetwork, Guest…" />
+            <label class="sidebar-label" data-i18n="rssiLabel">Min RSSI<span class="info-tip" title="Received Signal Strength Indicator — measures signal power in dBm. Closer to 0 = stronger signal">ⓘ</span></label>
+            <input id="rssiFilter" type="number" class="wifi-input wifi-input-sm" value="-90" min="-120" max="0" />
+            <div class="wifi-band-filter">
+              <button class="wifi-band-btn active" data-band="all" onclick="setBandFilter('all')">All</button>
+              <button class="wifi-band-btn" data-band="2.4" onclick="setBandFilter('2.4')">2.4 GHz</button>
+              <button class="wifi-band-btn" data-band="5" onclick="setBandFilter('5')">5 GHz</button>
+            </div>
+          </div>
+        </div>
+        <div id="deviceList" class="wifi-device-list">
+          <div class="wifi-empty" data-i18n="noDevices">No networks found. Press Scan to start.</div>
+        </div>
+        <div id="radarView" class="ble-radar-view" style="display:none">
+          <div class="radar-style-bar">
+            <button class="radar-style-btn active" data-style="military" onclick="setRadarStyle('military')">Military</button>
+            <button class="radar-style-btn" data-style="tactical" onclick="setRadarStyle('tactical')">Tactical</button>
+            <button class="radar-style-btn" data-style="thermal" onclick="setRadarStyle('thermal')">Thermal</button>
+            <button class="radar-style-btn" data-style="sonar" onclick="setRadarStyle('sonar')">Sonar</button>
+            <button class="radar-style-btn" data-style="constellation" onclick="setRadarStyle('constellation')">Stars</button>
+            <button class="radar-style-btn" data-style="matrix" onclick="setRadarStyle('matrix')">Matrix</button>
+            <button class="radar-style-btn" data-style="submarine" onclick="setRadarStyle('submarine')">Sub</button>
+          </div>
+          <div class="ble-radar-container">
+            <div class="ble-radar-circle">
+              <div class="ble-radar-ring ble-ring-1"></div>
+              <div class="ble-radar-ring ble-ring-2"></div>
+              <div class="ble-radar-ring ble-ring-3"></div>
+              <span class="ble-radar-label ble-label-1">~5m</span>
+              <span class="ble-radar-label ble-label-2">~15m</span>
+              <span class="ble-radar-label ble-label-3">~30m</span>
+              <div class="ble-radar-sweep"></div>
+              <div class="ble-radar-center">📶</div>
+              <div id="radarBlips"></div>
+            </div>
+          </div>
+          <div class="ble-radar-legend">
+            <span class="ble-legend-item"><span class="ble-legend-dot" style="background:#22c55e"></span> &lt;5m</span>
+            <span class="ble-legend-item"><span class="ble-legend-dot" style="background:#eab308"></span> ~15m</span>
+            <span class="ble-legend-item"><span class="ble-legend-dot" style="background:#f97316"></span> ~30m</span>
+            <span class="ble-legend-item"><span class="ble-legend-dot" style="background:#ef4444"></span> &gt;30m</span>
+          </div>
+          <div id="radarDetail" class="ble-radar-detail" style="display:none"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ══════ CARD 2 — NETWORK DETAILS ══════ -->
+    <details class="collapsible section-details" id="explorerDetails">
+      <summary><span class="icon">🔬</span> <span data-i18n="charTitle">Network Details</span></summary>
+      <div class="card section-details section-details-hero">
+        <div class="card-header">
+          <div>
+            <div class="card-title" id="connectedDeviceName" data-i18n="noDevConn">No network selected</div>
+          </div>
+        </div>
+        <div id="networkDetails" class="wifi-network-details">
+          <div class="wifi-empty">Select a network to view details.</div>
+        </div>
+        <div style="padding:8px 0">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">📈 Signal History</div>
+          <div class="wifi-chart-wrap"><canvas id="signalHistoryChart"></canvas></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Hidden elements kept for backward compat with JS -->
+    <select id="serviceSelect" class="sidebar-select" style="display:none"></select>
+    <select id="charSelect" class="sidebar-select" style="display:none"></select>
+
+    <!-- ══════ CARD 3 — MONITOR ══════ -->
+    <details class="collapsible section-monitor">
+      <summary><span class="icon">📊</span> <span data-i18n="monitorTitle">Monitor</span></summary>
+      <div class="card section-monitor">
+        <div class="card-header">
+          <div>
+            <div class="card-title" data-i18n="chartTitle">Real-time RSSI Chart</div>
+            <div class="card-subtitle" data-i18n="chartDesc">Live signal strength over time</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="button btn-sm" onclick="clearChart()">🧹 <span data-i18n="clearChart">Clear</span></button>
+            <button class="button btn-sm" onclick="exportChartData()">💾 <span data-i18n="exportChart">Export</span></button>
+          </div>
+        </div>
+        <div class="control-section">
+          <div class="wifi-chart-options">
+            <label class="sidebar-label" data-i18n="chartWindow">Window (pts)</label>
+            <input id="chartWindow" type="number" class="wifi-input wifi-input-sm" value="60" min="10" max="500" />
+            <label class="toggle-ctrl"><input type="checkbox" id="chartPause" class="checkbox-ctrl" /><span data-i18n="chartPause">Pause</span></label>
+            <label class="toggle-ctrl"><input type="checkbox" id="chartGrid"  class="checkbox-ctrl" checked /><span data-i18n="chartGrid">Grid</span></label>
+          </div>
+        </div>
+        <div class="wifi-chart-wrap"><canvas id="bleChart"></canvas></div>
+        <div class="wifi-stats-row">
+          <span class="wifi-stat"><span data-i18n="statMin">Min</span>: <strong id="statMin">—</strong></span>
+          <span class="wifi-stat"><span data-i18n="statMax">Max</span>: <strong id="statMax">—</strong></span>
+          <span class="wifi-stat"><span data-i18n="statAvg">Avg</span>: <strong id="statAvg">—</strong></span>
+          <span class="wifi-stat"><span data-i18n="statCount">Points</span>: <strong id="statCount">0</strong></span>
+        </div>
+      </div>
+    </details>
+
+    <!-- ══════ CARD 4 — CHANNEL ANALYZER ══════ -->
+    <details class="collapsible section-channel" id="channelCard">
+      <summary><span class="icon">📻</span> <span data-i18n="channelTitle">Channel Analyzer</span></summary>
+      <div class="card section-channel">
+        <div class="card-header">
+          <div>
+            <div class="card-title">📻 Channel Analyzer</div>
+            <div class="card-subtitle">See which WiFi channels are crowded</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="button primary btn-sm" onclick="analyzeChannels()"><span class="btn-icon">🔍</span> Analyze</button>
+          </div>
+        </div>
+
+        <!-- 2.4 GHz Channel Map -->
+        <div style="padding:8px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">📶 2.4 GHz Channel Map</div>
+          <div class="wifi-channel-canvas-wrap"><canvas id="channel24Canvas"></canvas></div>
+          <div class="wifi-best-channel">
+            <span style="font-size:.72rem; color:var(--text-dim)">Best channel:</span>
+            <span id="bestChannel24" class="wifi-channel-badge" style="font-size:.85rem; font-weight:700">—</span>
+          </div>
+        </div>
+
+        <!-- 5 GHz Channel Map -->
+        <div style="padding:8px 0">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#22cc88; margin-bottom:8px; padding:0 4px;">📡 5 GHz Channel Map</div>
+          <div class="wifi-channel-canvas-wrap"><canvas id="channel5Canvas"></canvas></div>
+          <div class="wifi-best-channel">
+            <span style="font-size:.72rem; color:var(--text-dim)">Best channel:</span>
+            <span id="bestChannel5" class="wifi-channel-badge" style="font-size:.85rem; font-weight:700">—</span>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ══════ CARD 5 — ACHIEVEMENTS & COLLECTION ══════ -->
+    <details class="collapsible section-achievements">
+      <summary><span class="icon">🏆</span> Achievements &amp; Collection</summary>
+      <div class="card section-achievements">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🏆 Achievements</div>
+            <div class="card-subtitle">Complete challenges to unlock badges!</div>
+          </div>
+        </div>
+        <div class="badge-progress">
+          <div class="badge-progress-bar"><div id="badgeProgressFill" class="badge-progress-fill" style="width:0%"></div></div>
+          <span id="badgeProgressText" class="badge-progress-text">0/20</span>
+        </div>
+        <div id="badgeGrid" class="badge-grid"></div>
+
+        <!-- Signal Gauge -->
+        <div style="padding:12px 0; border-top:1px solid var(--border,rgba(255,255,255,.06)); margin-top:12px">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#f59e0b; margin-bottom:8px; padding:0 4px;">📶 Live Signal Gauge</div>
+          <div class="signal-gauge-wrap"><div id="signalGauge" class="signal-gauge"></div></div>
+        </div>
+
+        <!-- Frequency Map -->
+        <div style="padding:12px 0; border-top:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#f59e0b; margin-bottom:8px; padding:0 4px;">📻 Where is WiFi? (Electromagnetic Spectrum)</div>
+          <div class="freq-map"><canvas id="freqMapCanvas"></canvas></div>
+          <div class="freq-map-labels"><span>AM</span><span>FM</span><span>TV</span><span>Cell</span><span>WiFi 2.4</span><span>BLE</span><span>WiFi 5</span><span>6E</span><span>uWave</span><span>Sat</span></div>
+        </div>
+
+        <!-- Trading Cards -->
+        <div style="padding:12px 0; border-top:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding:0 4px;">
+            <span style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#f59e0b;">🃏 Network Trading Cards</span>
+            <span id="cardCount" style="font-family:'Orbitron',monospace; font-size:.6rem; color:var(--text-dim,#7a8aaa);">0 collected</span>
+          </div>
+          <div id="tradingCards" class="card-collection"></div>
+        </div>
+
+        <!-- Device Diary -->
+        <div style="padding:12px 0; border-top:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#f59e0b; margin-bottom:8px; padding:0 4px;">📔 Network Diary</div>
+          <div id="deviceDiary" class="device-diary"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ══════ CARD 6 — COMMAND CENTER ══════ -->
+    <details class="collapsible section-command">
+      <summary><span class="icon">🎯</span> Command Center <span id="threatCountBadge" class="threat-count-badge green" style="display:none;margin-left:6px">0</span></summary>
+      <div class="card section-command">
+
+        <!-- Scan Analytics -->
+        <div style="padding:8px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">📊 Scan Analytics</div>
+          <div class="analytics-row">
+            <div class="analytics-card"><div id="analyticsDevPerMin" class="analytics-value">0</div><div class="analytics-label">Networks/min</div></div>
+            <div class="analytics-card"><div id="analyticsSession" class="analytics-value">0m</div><div class="analytics-label">Session</div></div>
+            <div class="analytics-card"><div id="analyticsPeak" class="analytics-value">0</div><div class="analytics-label">Peak</div></div>
+            <div class="analytics-card"><div id="analyticsTotalScans" class="analytics-value">0</div><div class="analytics-label">Scans</div></div>
+          </div>
+          <div class="analytics-chart-wrap">
+            <div class="vendor-pie-wrap"><canvas id="vendorPieCanvas"></canvas></div>
+            <div class="rssi-histogram-wrap"><canvas id="rssiHistCanvas"></canvas></div>
+          </div>
+        </div>
+
+        <!-- WiFi Leaderboard -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">🏆 WiFi Leaderboard</div>
+          <table class="leaderboard-table">
+            <thead><tr><th>#</th><th>Network</th><th>Visits</th><th>Best RSSI</th><th>DNA</th></tr></thead>
+            <tbody id="leaderboardBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Mission Mode -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">🎯 Missions</div>
+          <div class="xp-bar-wrap">
+            <span id="xpLevel" class="xp-level">Lv.1 WiFi Rookie</span>
+            <div class="xp-bar"><div id="xpBarFill" class="xp-bar-fill" style="width:0%"></div></div>
+            <span id="xpText" class="xp-text">0 / 50 XP</span>
+          </div>
+          <div id="missionGrid" class="mission-grid"></div>
+        </div>
+
+        <!-- Signal Heatmap -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">🌡️ Signal Heatmap Timeline</div>
+          <div class="heatmap-wrap"><canvas id="heatmapCanvas"></canvas></div>
+          <div class="heatmap-legend"><span>Weak (-100)</span><span>Strong (-30)</span></div>
+        </div>
+
+        <!-- Co-Location Graph -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">🔗 Co-Location Graph</div>
+          <div class="coloc-wrap"><canvas id="colocCanvas"></canvas></div>
+        </div>
+
+        <!-- Sound Signatures -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">🎵 Sound Signatures</div>
+          <div id="soundSignatures" class="sound-signatures">
+            <div style="text-align:center;padding:12px;color:var(--text-dim);font-size:.7rem">Scan networks to hear their signal sounds</div>
+          </div>
+        </div>
+
+        <!-- Stealth Meter -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">🥷 Stealth Meter</div>
+          <div id="stealthList" class="stealth-list">
+            <div style="text-align:center;padding:12px;color:var(--text-dim);font-size:.7rem">Scan to analyze network stealth levels</div>
+          </div>
+        </div>
+
+        <!-- Scan Diff -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">🔀 Scan Diff</div>
+          <div id="diffSummary" class="diff-summary"></div>
+          <div id="diffView" class="diff-wrap">
+            <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:8px">Run 2 scans to see diff</div>
+          </div>
+        </div>
+
+        <!-- Device Graveyard -->
+        <div style="padding:12px 0">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">🪦 Network Graveyard</div>
+          <div id="graveyardGrid" class="graveyard-grid">
+            <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:12px;grid-column:1/-1">No departed networks yet...</div>
+          </div>
+        </div>
+
+      </div>
+    </details>
+
+    <!-- ══════ CARD 7 — HACKER LAB ══════ -->
+    <details class="collapsible section-lab">
+      <summary><span class="icon">🧪</span> Hacker Lab</summary>
+      <div class="card section-lab">
+
+        <!-- Device Autopsy -->
+        <div style="padding:8px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#22c55e; margin-bottom:8px; padding:0 4px;">🔬 Network Autopsy</div>
+          <div id="autopsyPanel" class="autopsy-panel">
+            <div style="text-align:center;padding:12px;color:var(--text-dim);font-size:.7rem">Click a network in Time Travel or Radar to autopsy it</div>
+          </div>
+        </div>
+
+        <!-- Packet Storm -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#22c55e; margin-bottom:8px; padding:0 4px;">⚡ Packet Storm</div>
+          <div class="packet-storm-wrap">
+            <canvas id="packetStormCanvas"></canvas>
+            <div id="packetStormStats" class="packet-storm-stats">0 pkts</div>
+          </div>
+        </div>
+
+        <!-- Time Travel Scanner -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#22c55e; margin-bottom:8px; padding:0 4px;">⏳ Time Travel Scanner</div>
+          <div class="timetravel-wrap">
+            <div class="timetravel-slider-row">
+              <span style="font-size:.7rem;color:var(--text-dim)">Past</span>
+              <input id="timeTravelSlider" class="timetravel-slider" type="range" min="0" max="0" value="0" oninput="onTimeTravelSlide(this.value)" />
+              <span id="timeTravelTime" class="timetravel-time">--:--:--</span>
+              <span style="font-size:.7rem;color:var(--text-dim)">Now</span>
+            </div>
+            <div id="timeTravelView" class="timetravel-snapshot">
+              <div style="text-align:center;color:var(--text-dim);font-size:.7rem;padding:8px;width:100%">No snapshots yet — start scanning</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RF Channel Waterfall -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#22c55e; margin-bottom:8px; padding:0 4px;">📻 RF Channel Waterfall</div>
+          <div class="rf-mini-wrap"><canvas id="rfMiniCanvas"></canvas></div>
+          <div class="rf-mini-axis"><span>Ch 1</span><span>Ch 6</span><span>Ch 11</span><span>Ch 36</span><span>Ch 149</span></div>
+        </div>
+
+        <!-- Terminal Hacker View -->
+        <div style="padding:12px 0">
+          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#22c55e; margin-bottom:8px; padding:0 4px;">💻 Terminal</div>
+          <div class="terminal-wrap">
+            <div class="terminal-header">
+              <span class="terminal-dot r"></span>
+              <span class="terminal-dot y"></span>
+              <span class="terminal-dot g"></span>
+              <span class="terminal-title">root@wifi-dashboard:~</span>
+            </div>
+            <div id="terminalBody" class="terminal-body"></div>
+          </div>
+        </div>
+
+      </div>
+    </details>
+
+    <!-- ══════ CARD 8 — DEBUG TOOLS ══════ -->
+    <details class="collapsible section-debug">
+      <summary><span class="icon">🐛</span> <span data-i18n="debugTitle">Debug Tools</span></summary>
+      <div class="card section-debug">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🐛 Debug Log</div>
+            <div class="card-subtitle">Raw events and diagnostic output</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="button btn-sm" onclick="clearDebugLog()">🧹 Clear</button>
+            <button class="button btn-sm" onclick="exportDebugLog()">💾 Export</button>
+          </div>
+        </div>
+        <div class="debug-log-panel">
+          <div id="debugLogBody" class="terminal-body" style="min-height:120px;max-height:300px;overflow-y:auto;font-size:.7rem">
+            <div style="color:var(--text-dim);padding:8px">Debug log ready.</div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+  </div><!-- /rows-container -->
+
+  <!-- ══════ FOOTER ══════ -->
+  <footer class="app-footer">
+    <span class="footer-text">powered by <a href="https://workshop-diy.org" target="_blank" rel="noopener">workshop-diy.org</a></span>
+    <span class="hijri-date" id="hijriDate"></span>
+  </footer>
+  <div class="deco-band bottom-band" aria-hidden="true"></div>
+</div>
+
+<canvas id="matrixCanvas" class="matrix-canvas"></canvas>
+<div id="debugPanel" class="debug-panel"><span id="debugFps">0 FPS</span><span id="debugMem">0 MB</span></div>
+
+<!-- ══════ LEFT PANEL — Help ══════ -->
+<div class="sidebar-overlay" id="helpOverlay"></div>
+<aside class="sidebar sidebar-left" id="helpPanel" role="dialog" aria-modal="true" aria-label="Help">
+  <div class="sidebar-header">
+    <span class="sidebar-title" data-i18n="help">❓ Help</span>
+    <button id="helpCloseBtn" class="btn-icon-only" aria-label="Close">✕</button>
+  </div>
+  <div class="help-tabs">
+    <button class="help-tab active" data-tab="faq"   data-i18n="faq">FAQ</button>
+    <button class="help-tab"        data-tab="howto" data-i18n="howto">How-To</button>
+    <button class="help-tab"        data-tab="wiki"  data-i18n="wiki">Wiki</button>
+    <button class="help-tab"        data-tab="academy">Academy</button>
+  </div>
+  <div class="sidebar-body">
+    <div class="help-content active" id="helpFaq">
+      <details class="help-item"><summary data-i18n="faq_q1">What is WiFi?</summary><p data-i18n="faq_a1">WiFi (802.11) is a wireless networking standard that uses radio waves to provide high-speed internet and network connections.</p></details>
+      <details class="help-item"><summary data-i18n="faq_q2">What do the bands mean?</summary><p data-i18n="faq_a2">2.4 GHz has longer range but slower speed. 5 GHz has shorter range but faster speed. Both are used by modern routers.</p></details>
+      <details class="help-item"><summary data-i18n="faq_q3">What is a channel?</summary><p data-i18n="faq_a3">WiFi channels are sub-divisions of the frequency band. Using a less crowded channel improves performance.</p></details>
+      <details class="help-item"><summary data-i18n="faq_q4">Is data logged?</summary><p data-i18n="faq_a4">Yes — the Python backend logs all scan events to /logs/ as CSV and JSON Lines automatically.</p></details>
+      <details class="help-item"><summary data-i18n="faq_q5">How to start backend?</summary><p data-i18n="faq_a5">cd backend &amp;&amp; pip install -r requirements.txt &amp;&amp; python main.py</p></details>
+    </div>
+    <div class="help-content" id="helpHowto">
+      <div class="help-step"><span class="help-step-num">1</span><p data-i18n="howto_1">Start the backend: cd backend &amp;&amp; python main.py</p></div>
+      <div class="help-step"><span class="help-step-num">2</span><p data-i18n="howto_2">Open http://localhost:8001 in your browser.</p></div>
+      <div class="help-step"><span class="help-step-num">3</span><p data-i18n="howto_3">Click Scan. Optionally filter by SSID, RSSI, or band.</p></div>
+      <div class="help-step"><span class="help-step-num">4</span><p data-i18n="howto_4">Click a network to view details and signal history.</p></div>
+      <div class="help-step"><span class="help-step-num">5</span><p data-i18n="howto_5">Use Channel Analyzer to find the best WiFi channel.</p></div>
+      <div class="help-step"><span class="help-step-num">6</span><p data-i18n="howto_6">Watch the real-time chart. Export logs from Settings.</p></div>
+    </div>
+    <div class="help-content" id="helpWiki">
+      <div class="wiki-entry"><h3 data-i18n="wiki_wifi_title">📶 WiFi Protocol</h3><p data-i18n="wiki_wifi">802.11 a/b/g/n/ac/ax. Uses 2.4 GHz and 5 GHz bands. Channels 1-14 (2.4G) and 36-165 (5G).</p></div>
+      <div class="wiki-entry"><h3 data-i18n="wiki_security_title">🔒 Security</h3><p data-i18n="wiki_security">WEP (broken), WPA (legacy), WPA2 (standard), WPA3 (latest). Always use WPA2 or WPA3.</p></div>
+      <div class="wiki-entry"><h3 data-i18n="wiki_backend_title">🐍 Backend</h3><p data-i18n="wiki_backend">FastAPI + scapy/pywifi. WS: ws://localhost:8001/ws. REST: /api/. Logs: /logs/.</p></div>
+      <div class="wiki-entry"><h3 data-i18n="wiki_log_title">📜 Log</h3><p data-i18n="wiki_log">SCAN = network discovered, RSSI = signal update. Filter by type. Export as .txt.</p></div>
+    </div>
+    <div class="help-content" id="helpAcademy">
+      <details class="academy-lesson">
+        <summary>📶 Lesson 1: What is WiFi?</summary>
+        <div class="academy-body">
+          <p><strong>WiFi</strong> uses radio waves to connect devices to the internet wirelessly. Your router broadcasts a signal that your phone, laptop, and smart devices can connect to.</p>
+          <p>WiFi uses two main frequency bands:</p>
+          <div class="academy-diagram">  2.4 GHz — longer range, slower speed, more interference
+  5 GHz   — shorter range, faster speed, less interference
+
+  📱 Phone ──radio waves──▶ 📡 Router ──cable──▶ 🌐 Internet</div>
+          <div class="academy-quiz">
+            <div class="academy-quiz-q">Quiz: Which WiFi band has longer range?</div>
+            <div class="academy-quiz-options">
+              <div class="academy-quiz-opt" data-correct="true" onclick="quizAnswer(this, true)">2.4 GHz</div>
+              <div class="academy-quiz-opt" onclick="quizAnswer(this, false)">5 GHz</div>
+              <div class="academy-quiz-opt" onclick="quizAnswer(this, false)">6 GHz</div>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="academy-lesson">
+        <summary>🔒 Lesson 2: WiFi Security</summary>
+        <div class="academy-body">
+          <p>WiFi security has evolved over the years:</p>
+          <div class="academy-diagram">  WEP  — 1997 — BROKEN (can be cracked in minutes)
+  WPA  — 2003 — Legacy (TKIP, vulnerable)
+  WPA2 — 2004 — Standard (AES encryption)
+  WPA3 — 2018 — Latest (stronger protection)
+
+  Open = No password = Anyone can see your data!</div>
+          <p>Always use <strong>WPA2</strong> or <strong>WPA3</strong> encryption. Never connect to open networks for sensitive tasks.</p>
+          <div class="academy-quiz">
+            <div class="academy-quiz-q">Quiz: Which security protocol is the most secure?</div>
+            <div class="academy-quiz-options">
+              <div class="academy-quiz-opt" onclick="quizAnswer(this, false)">WEP</div>
+              <div class="academy-quiz-opt" onclick="quizAnswer(this, false)">WPA2</div>
+              <div class="academy-quiz-opt" data-correct="true" onclick="quizAnswer(this, true)">WPA3</div>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="academy-lesson">
+        <summary>📻 Lesson 3: WiFi Channels</summary>
+        <div class="academy-body">
+          <p>WiFi channels are like lanes on a highway. If too many routers use the same channel, they interfere with each other and slow down.</p>
+          <div class="academy-diagram">  2.4 GHz: 14 channels (1-14), only 3 non-overlapping: 1, 6, 11
+  5 GHz:   25+ channels, much less overlap
+
+  Channel 1:  |====|
+  Channel 6:       |====|
+  Channel 11:           |====|
+
+  Best practice: use channels 1, 6, or 11 on 2.4 GHz</div>
+          <div class="academy-quiz">
+            <div class="academy-quiz-q">Quiz: Which 2.4 GHz channels don't overlap?</div>
+            <div class="academy-quiz-options">
+              <div class="academy-quiz-opt" onclick="quizAnswer(this, false)">1, 2, 3</div>
+              <div class="academy-quiz-opt" data-correct="true" onclick="quizAnswer(this, true)">1, 6, 11</div>
+              <div class="academy-quiz-opt" onclick="quizAnswer(this, false)">5, 10, 15</div>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="academy-lesson">
+        <summary>📏 Lesson 4: RSSI — Signal Strength</summary>
+        <div class="academy-body">
+          <p><strong>RSSI</strong> (Received Signal Strength Indicator) tells you how strong a WiFi signal is. Measured in <strong>dBm</strong>:</p>
+          <div class="academy-diagram">  -30 dBm = EXCELLENT (next to router)
+  -50 dBm = GOOD     (same room)
+  -70 dBm = OK       (through walls)
+  -80 dBm = WEAK     (far away)
+  -90 dBm = LOST     (barely usable)</div>
+          <p>Walls, floors, and other objects weaken the signal. Metal and concrete block WiFi the most.</p>
+          <div class="academy-quiz">
+            <div class="academy-quiz-q">Quiz: Which RSSI value means the strongest signal?</div>
+            <div class="academy-quiz-options">
+              <div class="academy-quiz-opt" onclick="quizAnswer(this, false)">-90 dBm</div>
+              <div class="academy-quiz-opt" onclick="quizAnswer(this, false)">-60 dBm</div>
+              <div class="academy-quiz-opt" data-correct="true" onclick="quizAnswer(this, true)">-30 dBm</div>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+  <div class="sidebar-footer"><span>WiFi Dashboard</span><span class="badge"><strong>v1.0</strong></span></div>
+</aside>
+
+<!-- ══════ RIGHT PANEL — Settings ══════ -->
+<div class="sidebar-overlay" id="settingsOverlay"></div>
+<aside class="sidebar" id="settingsPanel" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="sidebar-header">
+    <span class="sidebar-title" data-i18n="settings">⚙️ Settings</span>
+    <button id="settingsCloseBtn" class="btn-icon-only" aria-label="Close">✕</button>
+  </div>
+  <div class="sidebar-body">
+    <div class="sidebar-group">
+      <label class="sidebar-label" data-i18n="language">Language</label>
+      <select id="langSelect" class="sidebar-select">
+        <option value="en">EN</option>
+        <option value="fr">FR</option>
+        <option value="ar">عربي</option>
+      </select>
+    </div>
+    <div class="sidebar-group">
+      <label class="sidebar-label" data-i18n="theme">Theme</label>
+      <select id="themeSelect" class="sidebar-select">
+        <option value="mosque-gold" data-i18n-opt="t_mosque">Mosque</option>
+        <option value="zellige"     data-i18n-opt="t_zellige">Zellige</option>
+        <option value="andalus"     data-i18n-opt="t_andalus">Andalus</option>
+        <option value="riad"        data-i18n-opt="t_riad">Riad</option>
+        <option value="medina"      data-i18n-opt="t_medina">Medina</option>
+        <option value="space"       data-i18n-opt="t_space">Space</option>
+        <option value="jungle"      data-i18n-opt="t_jungle">Jungle</option>
+        <option value="robot"       data-i18n-opt="t_robot">Robot</option>
+      </select>
+    </div>
+    <div class="sidebar-group">
+      <label class="toggle-ctrl"><input type="checkbox" id="soundToggle" class="checkbox-ctrl" /><span data-i18n="soundEffects">Sound effects</span></label>
+    </div>
+    <div class="sidebar-group">
+      <label class="sidebar-label" data-i18n="backendURL">Backend URL</label>
+      <input id="backendURL" type="text" class="wifi-input" value="ws://localhost:8001/ws" />
+    </div>
+    <div class="sidebar-group">
+      <label class="sidebar-label" data-i18n="logFormat">Log format</label>
+      <select id="logFormatSel" class="sidebar-select">
+        <option value="both"  data-i18n="logBoth">CSV + JSON</option>
+        <option value="csv">CSV only</option>
+        <option value="json">JSON only</option>
+      </select>
+    </div>
+    <div class="sidebar-group">
+      <button class="btn-sm" style="width:100%" onclick="exportLogsFromBackend()"><span class="btn-icon">💾</span> <span data-i18n="exportLogs">Export logs from backend</span></button>
+    </div>
+  </div>
+  <div class="sidebar-footer"><span>WiFi Dashboard</span><span class="badge"><strong>v1.0</strong></span></div>
+</aside>
+
+<!-- ══════ RIGHT PANEL — Activity Log (docked) ══════ -->
+<aside class="sidebar" id="logPanel" aria-label="Activity Log">
+  <div class="resize-handle" id="logResizeHandle"></div>
+  <div class="sidebar-header">
+    <span class="sidebar-title" data-i18n="activityLog">📜 Activity Log</span>
+    <div class="log-controls">
+      <button id="clearLogBtn" class="btn-sm"><span class="btn-icon">🧹</span><span data-i18n="clear">Clear</span></button>
+      <button id="copyLogBtn"  class="btn-sm"><span class="btn-icon">📋</span><span data-i18n="copy">Copy</span></button>
+      <button id="exportLogBtn" class="btn-sm"><span class="btn-icon">💾</span><span data-i18n="export">Export</span></button>
+      <button id="logCloseBtn" class="btn-icon-only" aria-label="Close">✕</button>
+    </div>
+  </div>
+  <div class="log-filters" id="logFilters">
+    <button class="log-filter active" data-filter="all"     data-i18n="filterAll">All</button>
+    <button class="log-filter"        data-filter="info">Info</button>
+    <button class="log-filter"        data-filter="success">✓</button>
+    <button class="log-filter"        data-filter="error">✗</button>
+    <button class="log-filter"        data-filter="tx">TX</button>
+    <button class="log-filter"        data-filter="rx">RX</button>
+  </div>
+  <div class="sidebar-body log-body">
+    <div class="log" id="logContainer" aria-live="polite"></div>
+  </div>
+  <div class="sidebar-footer"><span data-i18n="eventsMsg">Events &amp; messages</span><span class="badge"><strong>v1.0</strong></span></div>
+</aside>
+
+<!-- Toast -->
+<div id="toastIndicator" class="toast-indicator">
+  <div class="toast-inner">
+    <div class="spinner"></div>
+    <div id="toastMessage" class="toast-text">Working…</div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+<script src="wifi.js?v=1"></script>
+<script src="badges.js?v=2"></script>
+<script src="features.js?v=2"></script>
+<script src="channel.js?v=1"></script>
+</body>
+</html>

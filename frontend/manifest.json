@@ -1,0 +1,9 @@
+{
+  "name": "WiFi Dashboard",
+  "short_name": "WiFi Dash",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#38bdf8",
+  "icons": []
+}
