@@ -14,7 +14,7 @@
   <meta name="theme-color" content="#08091a" />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Righteous&family=Tajawal:wght@400;500;700&family=Bangers&family=Orbitron:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="wifi.css?v=1" />
+  <link rel="stylesheet" href="wifi.css?v=2" />
   <link rel="stylesheet" href="channel.css?v=1" />
   <link rel="stylesheet" href="badges.css?v=2" />
   <link rel="stylesheet" href="radar-styles.css?v=2" />
@@ -121,6 +121,12 @@
             <button class="radar-style-btn" data-style="constellation" onclick="setRadarStyle('constellation')">Stars</button>
             <button class="radar-style-btn" data-style="matrix" onclick="setRadarStyle('matrix')">Matrix</button>
             <button class="radar-style-btn" data-style="submarine" onclick="setRadarStyle('submarine')">Sub</button>
+          </div>
+          <div class="radar-zoom-bar">
+            <button id="radarZoomOut" class="button btn-sm radar-zoom-btn" onclick="radarZoomOut()" title="Zoom Out">−</button>
+            <span id="radarZoomLabel" class="radar-zoom-label">100%</span>
+            <button id="radarZoomIn" class="button btn-sm radar-zoom-btn" onclick="radarZoomIn()" title="Zoom In">+</button>
+            <button class="button btn-sm radar-zoom-btn" onclick="radarZoomReset()" title="Reset Zoom">⟲</button>
           </div>
           <div class="ble-radar-container">
             <div class="ble-radar-circle">

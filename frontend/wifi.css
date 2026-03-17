@@ -89,7 +89,30 @@ details.section-debug > summary .icon { color: #6b7280; }
 
 .ble-radar-view { padding:12px 0; display:flex; flex-direction:column; align-items:center; }
 
-.ble-radar-container { position:relative; width:100%; max-width:420px; aspect-ratio:1; }
+.ble-radar-container { position:relative; width:100%; max-width:420px; aspect-ratio:1; overflow:hidden; cursor:grab; }
+.ble-radar-container:active { cursor:grabbing; }
+
+/* ── Radar Zoom Controls ── */
+.radar-zoom-bar {
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  margin-bottom:8px; padding:4px 0;
+}
+.radar-zoom-btn {
+  width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center;
+  font-size:1.1rem; font-weight:700; border-radius:6px;
+  background:var(--surface,rgba(255,255,255,.06)); border:1px solid var(--border,rgba(255,255,255,.12));
+  color:var(--text,#e2e8f0); cursor:pointer; transition:all .15s;
+}
+.radar-zoom-btn:hover:not(:disabled) { background:var(--accent,#38bdf8); color:#000; }
+.radar-zoom-btn:disabled { opacity:.3; cursor:not-allowed; }
+.radar-zoom-label {
+  min-width:48px; text-align:center; font-family:'Orbitron',monospace;
+  font-size:.75rem; font-weight:600; color:var(--text-dim,#94a3b8);
+  letter-spacing:.04em;
+}
+
+/* Smooth zoom transition */
+.ble-radar-circle { transition: transform .2s ease-out; }
 
 .ble-radar-circle {
   position:relative; width:100%; height:100%;
@@ -282,6 +305,19 @@ details.section-debug > summary .icon { color: #6b7280; }
 
 /* ── network details panel ── */
 .wifi-network-details { padding:8px 0; display:flex; flex-direction:column; gap:8px; }
+
+/* ── detail panel ── */
+.wifi-detail-panel { padding:4px 0; }
+.wifi-detail-header { margin-bottom:8px; }
+.wifi-detail-ssid { font-size:1.05rem; font-weight:600; display:flex; align-items:center; gap:6px; }
+.wifi-detail-bssid { font-size:.78rem; color:var(--text-dim); font-family:'Courier New',monospace; margin-top:2px; }
+.wifi-detail-signal { display:flex; align-items:center; gap:10px; margin:6px 0; }
+.wifi-detail-graph { margin:6px 0 10px; }
+.wifi-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 16px; margin:8px 0; }
+.wifi-detail-field { display:flex; justify-content:space-between; padding:3px 6px; border-radius:4px; background:rgba(255,255,255,.03); }
+.wifi-detail-label { font-size:.78rem; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; }
+.wifi-detail-value { font-size:.82rem; color:var(--text); font-family:'Courier New',monospace; }
+.wifi-detail-actions { display:flex; gap:8px; margin-top:8px; }
 
 /* ── two-col layout ── */
 .wifi-row  { display:flex; gap:12px; flex-wrap:wrap; }

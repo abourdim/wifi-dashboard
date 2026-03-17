@@ -747,6 +747,12 @@ function selectNetwork(n) {
       r.classList.add('wifi-selected');
     }
   });
+  // Update header title
+  const titleEl = document.getElementById('connectedDeviceName');
+  if (titleEl) titleEl.textContent = n.ssid || n.bssid || 'Unknown Network';
+  // Auto-open the Network Details panel
+  const detailsPanel = document.getElementById('explorerDetails');
+  if (detailsPanel && !detailsPanel.open) detailsPanel.open = true;
   // Render detail panel
   _renderNetworkDetail(n);
   // Push RSSI to chart when selecting
@@ -758,7 +764,7 @@ function selectNetwork(n) {
 }
 
 function _renderNetworkDetail(n) {
-  const el = document.getElementById('networkDetail') || document.getElementById('radarDetail');
+  const el = document.getElementById('networkDetails') || document.getElementById('networkDetail') || document.getElementById('radarDetail');
   if (!el) return;
   el.style.display = '';
 
@@ -858,6 +864,99 @@ function _copyNetworkInfo() {
    for compatibility with radar-styles.css
    ═══════════════════════════════════ */
 let _radarMode = false;
+let _radarZoom = 1.0;
+const _RADAR_ZOOM_MIN = 0.5;
+const _RADAR_ZOOM_MAX = 4.0;
+const _RADAR_ZOOM_STEP = 0.25;
+
+function _applyRadarZoom() {
+  _applyRadarTransform();
+  // Update zoom label
+  const label = document.getElementById('radarZoomLabel');
+  if (label) label.textContent = Math.round(_radarZoom * 100) + '%';
+  // Toggle button states
+  const zoomIn = document.getElementById('radarZoomIn');
+  const zoomOut = document.getElementById('radarZoomOut');
+  if (zoomIn) zoomIn.disabled = _radarZoom >= _RADAR_ZOOM_MAX;
+  if (zoomOut) zoomOut.disabled = _radarZoom <= _RADAR_ZOOM_MIN;
+}
+
+function radarZoomIn() {
+  _radarZoom = Math.min(_RADAR_ZOOM_MAX, _radarZoom + _RADAR_ZOOM_STEP);
+  _applyRadarZoom();
+}
+
+function radarZoomOut() {
+  _radarZoom = Math.max(_RADAR_ZOOM_MIN, _radarZoom - _RADAR_ZOOM_STEP);
+  _applyRadarZoom();
+}
+
+function radarZoomReset() {
+  _radarZoom = 1.0;
+  _radarPanX = 0;
+  _radarPanY = 0;
+  _applyRadarZoom();
+}
+
+let _radarPanX = 0, _radarPanY = 0;
+let _radarDragging = false, _radarDragStart = null;
+
+function _applyRadarTransform() {
+  const circle = document.querySelector('.ble-radar-circle');
+  if (!circle) return;
+  if (_radarZoom <= 1) { _radarPanX = 0; _radarPanY = 0; }
+  circle.style.transform = 'scale(' + _radarZoom + ') translate(' + _radarPanX + 'px,' + _radarPanY + 'px)';
+  circle.style.transformOrigin = 'center center';
+}
+
+function _initRadarZoom() {
+  const container = document.querySelector('.ble-radar-container');
+  if (!container) return;
+
+  // Wheel zoom
+  container.addEventListener('wheel', (e) => {
+    if (!_radarMode) return;
+    e.preventDefault();
+    if (e.deltaY < 0) radarZoomIn();
+    else radarZoomOut();
+  }, { passive: false });
+
+  // Drag to pan
+  container.addEventListener('mousedown', (e) => {
+    if (!_radarMode || _radarZoom <= 1) return;
+    _radarDragging = true;
+    _radarDragStart = { x: e.clientX - _radarPanX, y: e.clientY - _radarPanY };
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!_radarDragging) return;
+    _radarPanX = e.clientX - _radarDragStart.x;
+    _radarPanY = e.clientY - _radarDragStart.y;
+    // Clamp pan so radar doesn't drift too far
+    const maxPan = (_radarZoom - 1) * 120;
+    _radarPanX = Math.max(-maxPan, Math.min(maxPan, _radarPanX));
+    _radarPanY = Math.max(-maxPan, Math.min(maxPan, _radarPanY));
+    _applyRadarTransform();
+  });
+  window.addEventListener('mouseup', () => { _radarDragging = false; });
+
+  // Touch drag to pan
+  container.addEventListener('touchstart', (e) => {
+    if (!_radarMode || _radarZoom <= 1 || e.touches.length !== 1) return;
+    _radarDragging = true;
+    _radarDragStart = { x: e.touches[0].clientX - _radarPanX, y: e.touches[0].clientY - _radarPanY };
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (!_radarDragging || e.touches.length !== 1) return;
+    _radarPanX = e.touches[0].clientX - _radarDragStart.x;
+    _radarPanY = e.touches[0].clientY - _radarDragStart.y;
+    const maxPan = (_radarZoom - 1) * 120;
+    _radarPanX = Math.max(-maxPan, Math.min(maxPan, _radarPanX));
+    _radarPanY = Math.max(-maxPan, Math.min(maxPan, _radarPanY));
+    _applyRadarTransform();
+  }, { passive: true });
+  window.addEventListener('touchend', () => { _radarDragging = false; });
+}
 
 function toggleRadarView() {
   _radarMode = !_radarMode;
@@ -934,7 +1033,7 @@ function renderRadarBlips(networks) {
     blip.style.top = y + '%';
     blip.style.animationDelay = (idx * 0.08) + 's';
     blip.title = (n.ssid || 'hidden') + ' — ' + rssi + ' dBm';
-    blip.onclick = (e) => { e.stopPropagation(); showRadarDetail(n); };
+    blip.onclick = (e) => { e.stopPropagation(); showRadarDetail(n); selectNetwork(n); };
 
     blip.innerHTML =
       '<div class="' + dotClass + '" style="background:' + proxColor + ';color:' + proxColor + ';border:2px solid ' + bandColor + '"></div>' +
@@ -1714,6 +1813,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const simBtn = document.getElementById('simulateBtn');
   if (simBtn) simBtn.addEventListener('click', simulateNetworks);
 
+  // Init radar zoom (wheel listener)
+  _initRadarZoom();
+
   // Activate radar view on startup
   setTimeout(() => { if (!_radarMode) toggleRadarView(); }, 300);
   // Auto-start scan once WebSocket is connected (give it time)
@@ -1808,6 +1910,9 @@ window.simulateNetworks = simulateNetworks;
 window.setBandFilter = setBandFilter;
 window.selectNetwork = selectNetwork;
 window.toggleRadarView = toggleRadarView;
+window.radarZoomIn = radarZoomIn;
+window.radarZoomOut = radarZoomOut;
+window.radarZoomReset = radarZoomReset;
 window.toggleProximitySound = toggleProximitySound;
 window.toggleFavorite = toggleFavorite;
 window.clearChart = clearChart;
