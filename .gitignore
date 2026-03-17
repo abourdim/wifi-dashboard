@@ -9,3 +9,4 @@ logs/*.jsonl
 server.log
 .server.pid
 .claude/
+.coverage
