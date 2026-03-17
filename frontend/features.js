@@ -832,6 +832,7 @@ function _analyzeThreats(networks) {
 function _renderThreats() {
   const container = document.getElementById('threatPanel');
   if (!container) return;
+  container.style.display = '';
 
   // Update threat count badge
   const badge = document.getElementById('threatCountBadge');
@@ -1642,3 +1643,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }, 800);
 });
+
+/* ═══════════════════════════════════
+   EXPOSE GLOBALS FOR HTML onclick
+   ═══════════════════════════════════ */
+window.setRadarStyle = setRadarStyle;
+window.toggleSoundscape = toggleSoundscape;
+window.onTimeTravelSlide = onTimeTravelSlide;
+window.exportScanReport = exportScanReport;
+window.showDeviceAutopsy = showDeviceAutopsy;

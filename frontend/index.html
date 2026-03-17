@@ -13,12 +13,12 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#08091a" />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Righteous&family=Tajawal:wght@400;500;700&family=Bangers&family=Orbitron:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=3" />
-  <link rel="stylesheet" href="wifi.css?v=3" />
-  <link rel="stylesheet" href="channel.css?v=3" />
-  <link rel="stylesheet" href="badges.css?v=3" />
-  <link rel="stylesheet" href="radar-styles.css?v=3" />
-  <link rel="stylesheet" href="features.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="wifi.css?v=4" />
+  <link rel="stylesheet" href="channel.css?v=4" />
+  <link rel="stylesheet" href="badges.css?v=4" />
+  <link rel="stylesheet" href="radar-styles.css?v=4" />
+  <link rel="stylesheet" href="features.css?v=4" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
@@ -295,6 +295,12 @@
       <summary><span class="icon">🎯</span> Command Center <span id="threatCountBadge" class="threat-count-badge green" style="display:none;margin-left:6px">0</span></summary>
       <div class="card section-command">
 
+        <!-- Threat Panel -->
+        <div id="threatPanel" style="display:none;padding:8px 0;border-bottom:1px solid var(--border,rgba(255,255,255,.06))"></div>
+
+        <!-- Channel Congestion Overview -->
+        <div id="congestionOverview" style="padding:8px 0;border-bottom:1px solid var(--border,rgba(255,255,255,.06));display:none"></div>
+
         <!-- Scan Analytics -->
         <div style="padding:8px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
           <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">📊 Scan Analytics</div>
@@ -345,9 +351,13 @@
 
         <!-- Sound Signatures -->
         <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
-          <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8; margin-bottom:8px; padding:0 4px;">🎵 Sound Signatures</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:0 4px;">
+            <div style="font-family:'Orbitron',monospace; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#38bdf8;">🎵 Sound Signatures</div>
+            <button id="soundscapeBtn" class="button btn-sm" onclick="toggleSoundscape()" title="Toggle network sounds">🔊 Enable</button>
+          </div>
+          <div id="soundViz" class="sound-viz" style="display:none;min-height:40px;background:rgba(0,0,0,.2);border-radius:6px;padding:8px;margin-bottom:8px"></div>
           <div id="soundSignatures" class="sound-signatures">
-            <div style="text-align:center;padding:12px;color:var(--text-dim);font-size:.7rem">Scan networks to hear their signal sounds</div>
+            <div style="text-align:center;padding:12px;color:var(--text-dim);font-size:.7rem">Enable sound and scan networks to hear their signal tones</div>
           </div>
         </div>
 
@@ -684,10 +694,10 @@
   </div>
 </div>
 
-<script src="script.js?v=3"></script>
-<script src="wifi.js?v=3"></script>
-<script src="badges.js?v=3"></script>
-<script src="features.js?v=3"></script>
-<script src="channel.js?v=3"></script>
+<script src="script.js?v=4"></script>
+<script src="wifi.js?v=4"></script>
+<script src="badges.js?v=4"></script>
+<script src="features.js?v=4"></script>
+<script src="channel.js?v=4"></script>
 </body>
 </html>

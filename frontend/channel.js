@@ -222,6 +222,7 @@ function renderBestChannel5(rec) {
 function renderCongestionOverview(networks) {
   const el = document.getElementById('congestionOverview');
   if (!el) return;
+  if (networks && networks.length) el.style.display = '';
 
   // Quick local analysis for real-time display
   const chCounts = {};
