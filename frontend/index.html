@@ -13,12 +13,12 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#08091a" />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Righteous&family=Tajawal:wght@400;500;700&family=Bangers&family=Orbitron:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="wifi.css?v=2" />
-  <link rel="stylesheet" href="channel.css?v=1" />
-  <link rel="stylesheet" href="badges.css?v=2" />
-  <link rel="stylesheet" href="radar-styles.css?v=2" />
-  <link rel="stylesheet" href="features.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="wifi.css?v=3" />
+  <link rel="stylesheet" href="channel.css?v=3" />
+  <link rel="stylesheet" href="badges.css?v=3" />
+  <link rel="stylesheet" href="radar-styles.css?v=3" />
+  <link rel="stylesheet" href="features.css?v=3" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
@@ -91,9 +91,9 @@
             <button id="scanBtn"     class="button primary" onclick="wifiScan()"><span class="btn-icon">🔍</span> <span data-i18n="scanStart">Scan</span></button>
             <button id="stopScanBtn" class="button fire-btn" onclick="wifiStopScan()" style="display:none"><span class="btn-icon">⛔</span> <span data-i18n="scanStop">Stop</span></button>
             <button id="radarToggleBtn" class="button btn-sm" onclick="toggleRadarView()" title="Radar view">📡</button>
-            <button class="button btn-sm" onclick="exportDevicesCSV()" title="Export to CSV">📥</button>
+            <button class="button btn-sm" onclick="exportNetworksCSV()" title="Export to CSV">📥</button>
             <button class="button btn-sm" onclick="exportScanReport()" title="Export HTML report">📊</button>
-            <button class="button btn-sm" onclick="simulateDevices()" title="Demo mode">🎲</button>
+            <button class="button btn-sm" onclick="simulateNetworks()" title="Demo mode">🎲</button>
           </div>
         </div>
         <div class="control-section">
@@ -122,6 +122,7 @@
             <button class="radar-style-btn" data-style="matrix" onclick="setRadarStyle('matrix')">Matrix</button>
             <button class="radar-style-btn" data-style="submarine" onclick="setRadarStyle('submarine')">Sub</button>
           </div>
+          <button id="proxSoundBtn" class="button btn-sm" onclick="toggleProximitySound()" style="display:none" title="Proximity Sound">🔊</button>
           <div class="radar-zoom-bar">
             <button id="radarZoomOut" class="button btn-sm radar-zoom-btn" onclick="radarZoomOut()" title="Zoom Out">−</button>
             <span id="radarZoomLabel" class="radar-zoom-label">100%</span>
@@ -217,7 +218,7 @@
             <div class="card-subtitle">See which WiFi channels are crowded</div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="button primary btn-sm" onclick="analyzeChannels()"><span class="btn-icon">🔍</span> Analyze</button>
+            <button class="button primary btn-sm" onclick="requestChannelAnalysis()"><span class="btn-icon">🔍</span> Analyze</button>
           </div>
         </div>
 
@@ -498,7 +499,7 @@
     </div>
     <div class="help-content" id="helpHowto">
       <div class="help-step"><span class="help-step-num">1</span><p data-i18n="howto_1">Start the backend: cd backend &amp;&amp; python main.py</p></div>
-      <div class="help-step"><span class="help-step-num">2</span><p data-i18n="howto_2">Open http://localhost:8001 in your browser.</p></div>
+      <div class="help-step"><span class="help-step-num">2</span><p data-i18n="howto_2">Open http://localhost:8002 in your browser.</p></div>
       <div class="help-step"><span class="help-step-num">3</span><p data-i18n="howto_3">Click Scan. Optionally filter by SSID, RSSI, or band.</p></div>
       <div class="help-step"><span class="help-step-num">4</span><p data-i18n="howto_4">Click a network to view details and signal history.</p></div>
       <div class="help-step"><span class="help-step-num">5</span><p data-i18n="howto_5">Use Channel Analyzer to find the best WiFi channel.</p></div>
@@ -507,7 +508,7 @@
     <div class="help-content" id="helpWiki">
       <div class="wiki-entry"><h3 data-i18n="wiki_wifi_title">📶 WiFi Protocol</h3><p data-i18n="wiki_wifi">802.11 a/b/g/n/ac/ax. Uses 2.4 GHz and 5 GHz bands. Channels 1-14 (2.4G) and 36-165 (5G).</p></div>
       <div class="wiki-entry"><h3 data-i18n="wiki_security_title">🔒 Security</h3><p data-i18n="wiki_security">WEP (broken), WPA (legacy), WPA2 (standard), WPA3 (latest). Always use WPA2 or WPA3.</p></div>
-      <div class="wiki-entry"><h3 data-i18n="wiki_backend_title">🐍 Backend</h3><p data-i18n="wiki_backend">FastAPI + scapy/pywifi. WS: ws://localhost:8001/ws. REST: /api/. Logs: /logs/.</p></div>
+      <div class="wiki-entry"><h3 data-i18n="wiki_backend_title">🐍 Backend</h3><p data-i18n="wiki_backend">FastAPI + scapy/pywifi. WS: ws://localhost:8002/ws. REST: /api/. Logs: /logs/.</p></div>
       <div class="wiki-entry"><h3 data-i18n="wiki_log_title">📜 Log</h3><p data-i18n="wiki_log">SCAN = network discovered, RSSI = signal update. Filter by type. Export as .txt.</p></div>
     </div>
     <div class="help-content" id="helpAcademy">
@@ -632,7 +633,7 @@
     </div>
     <div class="sidebar-group">
       <label class="sidebar-label" data-i18n="backendURL">Backend URL</label>
-      <input id="backendURL" type="text" class="wifi-input" value="ws://localhost:8001/ws" />
+      <input id="backendURL" type="text" class="wifi-input" value="ws://localhost:8002/ws" />
     </div>
     <div class="sidebar-group">
       <label class="sidebar-label" data-i18n="logFormat">Log format</label>
@@ -683,10 +684,10 @@
   </div>
 </div>
 
-<script src="script.js"></script>
-<script src="wifi.js?v=1"></script>
-<script src="badges.js?v=2"></script>
-<script src="features.js?v=2"></script>
-<script src="channel.js?v=1"></script>
+<script src="script.js?v=3"></script>
+<script src="wifi.js?v=3"></script>
+<script src="badges.js?v=3"></script>
+<script src="features.js?v=3"></script>
+<script src="channel.js?v=3"></script>
 </body>
 </html>

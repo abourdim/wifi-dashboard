@@ -482,20 +482,23 @@ function wsHandle(msg) {
       renderNetworkList(nets);
       toggleScanBtns(false);
       hideToast();
-      // If a network is selected, push its RSSI to the chart
+      // If a network is selected, refresh its detail panel and push RSSI to chart
       if (ble.selectedNet) {
         const sel = nets.find(n => n.bssid === ble.selectedNet);
-        if (sel && sel.rssi != null) {
-          pushChartPoint(sel.rssi, sel.ssid || sel.bssid);
+        if (sel) {
+          _renderNetworkDetail(sel);
+          if (sel.rssi != null) pushChartPoint(sel.rssi, sel.ssid || sel.bssid);
         }
       }
       break;
     }
     case 'channel_analysis': {
       ble.channelData = msg;
-      log('RX ← channel_analysis: ' + (msg.channels ? Object.keys(msg.channels).length + ' channels' : 'data received'),'rx');
+      const totalNets = (msg.ghz24 ? msg.ghz24.total_networks : 0) + (msg.ghz5 ? msg.ghz5.total_networks : 0);
+      log('RX ← channel_analysis: ' + totalNets + ' networks analyzed','rx');
       _timelineEvent('Channel Analysis', 'received', 'info');
       _renderChannelAnalysis(msg);
+      if (typeof handleChannelAnalysis === 'function') handleChannelAnalysis(msg);
       break;
     }
     case 'best_channel': {
@@ -577,7 +580,7 @@ function simulateNetworks() {
 function setBandFilter(band) {
   ble.bandFilter = band;
   // Update band filter button states
-  document.querySelectorAll('.wifi-band-filter-btn').forEach(btn => {
+  document.querySelectorAll('.wifi-band-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.band === band);
   });
   // Re-render with current networks
@@ -824,7 +827,7 @@ function _renderNetworkDetail(n) {
 
   // Action buttons
   html += '<div class="wifi-detail-actions">' +
-    '<button class="button btn-sm primary" onclick="if(ble.selectedNet) { pushChartPoint(' + (n.rssi||0) + ', \'' + esc(n.ssid || n.bssid) + '\'); }">📊 Track RSSI</button>' +
+    '<button class="button btn-sm primary" onclick="startRssiTracking(\'' + esc(n.bssid||'') + '\', \'' + esc(n.ssid || n.bssid || '') + '\')">📊 Track RSSI</button>' +
     '<button class="button btn-sm" onclick="_copyNetworkInfo()">📋 Copy Info</button>' +
     '</div>';
 
@@ -1059,6 +1062,8 @@ function showRadarDetail(n) {
   const ssid   = isHidden ? '(Hidden)' : n.ssid;
 
   el.style.display = '';
+  el.style.cursor = 'pointer';
+  el.onclick = () => { selectNetwork(n); };
   el.innerHTML =
     '<div class="detail-name">' + esc(ssid) + '</div>' +
     '<div class="detail-addr">' + esc(n.bssid || '') + '</div>' +
@@ -1142,60 +1147,79 @@ function _renderChannelAnalysis(msg) {
   const el = document.getElementById('channelAnalysisBody');
   if (!el) return;
 
-  const channels = msg.channels || {};
-  if (!Object.keys(channels).length) {
+  // Backend sends {ghz24: {channels, total_networks, recommendation}, ghz5: {...}}
+  const ghz24 = msg.ghz24 || {};
+  const ghz5 = msg.ghz5 || {};
+  const ch24 = ghz24.channels || {};
+  const ch5 = ghz5.channels || {};
+
+  if (!Object.keys(ch24).length && !Object.keys(ch5).length) {
     el.innerHTML = '<div class="wifi-empty">No channel data available. Run a scan first.</div>';
     return;
   }
 
-  // Separate 2.4 GHz and 5 GHz channels
-  const ch24 = {};
-  const ch5 = {};
-  Object.entries(channels).forEach(([ch, data]) => {
-    const chNum = parseInt(ch);
-    if (chNum <= 14) ch24[ch] = data;
-    else ch5[ch] = data;
-  });
-
   let html = '';
 
-  // 2.4 GHz channels
+  // 2.4 GHz channel map
   if (Object.keys(ch24).length) {
+    const rec24 = ghz24.recommendation || {};
+    const maxScore24 = Math.max(1, ...Object.values(ch24).map(d => d.score || 0));
     html += '<div class="wifi-channel-section">';
-    html += '<div class="wifi-channel-title">2.4 GHz Channels</div>';
+    html += '<div class="wifi-channel-title">📶 2.4 GHz Channel Map</div>';
     html += '<div class="wifi-channel-bars">';
-    const maxCount24 = Math.max(1, ...Object.values(ch24).map(d => d.count || d.networks || d || 0));
     Object.entries(ch24).sort((a,b) => parseInt(a[0]) - parseInt(b[0])).forEach(([ch, data]) => {
-      const count = typeof data === 'object' ? (data.count || data.networks || 0) : (data || 0);
-      const pct = (count / maxCount24) * 100;
+      const count = data.count || 0;
+      const score = data.score || 0;
+      const pct = (score / maxScore24) * 100;
       const isNonOverlap = [1, 6, 11].includes(parseInt(ch));
+      const isBest = rec24.channel && String(rec24.channel) === ch;
+      const barColor = count === 0 ? '#22c55e' : score > maxScore24 * 0.7 ? '#ef4444' : score > maxScore24 * 0.3 ? '#eab308' : '#22c55e';
       html += '<div class="wifi-channel-bar-wrap">' +
-        '<div class="wifi-channel-bar' + (isNonOverlap ? ' wifi-ch-nonoverlap' : '') + '" style="height:' + Math.max(4, pct) + '%">' +
+        '<div class="wifi-channel-bar' + (isNonOverlap ? ' wifi-ch-nonoverlap' : '') + (isBest ? ' wifi-ch-best' : '') + '" style="height:' + Math.max(6, pct) + '%;background:' + barColor + '">' +
           '<span class="wifi-channel-count">' + count + '</span>' +
         '</div>' +
-        '<div class="wifi-channel-label">Ch ' + ch + '</div>' +
+        '<div class="wifi-channel-label' + (isBest ? ' wifi-ch-best-label' : '') + '">Ch ' + ch + '</div>' +
         '</div>';
     });
-    html += '</div></div>';
+    html += '</div>';
+    // Recommendation
+    if (rec24.channel) {
+      html += '<div class="wifi-channel-rec">Best channel: <strong>Ch ' + rec24.channel + '</strong>';
+      if (rec24.reason) html += ' — ' + esc(rec24.reason);
+      html += '</div>';
+    }
+    html += '<div class="wifi-channel-total">' + (ghz24.total_networks || 0) + ' networks on 2.4 GHz</div>';
+    html += '</div>';
   }
 
-  // 5 GHz channels
+  // 5 GHz channel map
   if (Object.keys(ch5).length) {
+    const rec5 = ghz5.recommendation || {};
+    const maxScore5 = Math.max(1, ...Object.values(ch5).map(d => d.score || 0));
     html += '<div class="wifi-channel-section">';
-    html += '<div class="wifi-channel-title">5 GHz Channels</div>';
+    html += '<div class="wifi-channel-title">📡 5 GHz Channel Map</div>';
     html += '<div class="wifi-channel-bars">';
-    const maxCount5 = Math.max(1, ...Object.values(ch5).map(d => d.count || d.networks || d || 0));
     Object.entries(ch5).sort((a,b) => parseInt(a[0]) - parseInt(b[0])).forEach(([ch, data]) => {
-      const count = typeof data === 'object' ? (data.count || data.networks || 0) : (data || 0);
-      const pct = (count / maxCount5) * 100;
+      const count = data.count || 0;
+      const score = data.score || 0;
+      const pct = (score / maxScore5) * 100;
+      const isBest = rec5.channel && String(rec5.channel) === ch;
+      const barColor = count === 0 ? '#3b82f6' : score > maxScore5 * 0.7 ? '#ef4444' : score > maxScore5 * 0.3 ? '#eab308' : '#3b82f6';
       html += '<div class="wifi-channel-bar-wrap">' +
-        '<div class="wifi-channel-bar" style="height:' + Math.max(4, pct) + '%">' +
+        '<div class="wifi-channel-bar' + (isBest ? ' wifi-ch-best' : '') + '" style="height:' + Math.max(6, pct) + '%;background:' + barColor + '">' +
           '<span class="wifi-channel-count">' + count + '</span>' +
         '</div>' +
-        '<div class="wifi-channel-label">' + ch + '</div>' +
+        '<div class="wifi-channel-label' + (isBest ? ' wifi-ch-best-label' : '') + '">' + ch + '</div>' +
         '</div>';
     });
-    html += '</div></div>';
+    html += '</div>';
+    if (rec5.channel) {
+      html += '<div class="wifi-channel-rec">Best channel: <strong>Ch ' + rec5.channel + '</strong>';
+      if (rec5.reason) html += ' — ' + esc(rec5.reason);
+      html += '</div>';
+    }
+    html += '<div class="wifi-channel-total">' + (ghz5.total_networks || 0) + ' networks on 5 GHz</div>';
+    html += '</div>';
   }
 
   el.innerHTML = html;
@@ -1345,6 +1369,44 @@ function clearChart() {
   const c = document.getElementById('statCount'); if (c) c.textContent = '0';
   if (wifiChart) { wifiChart.data.labels = []; wifiChart.data.datasets = []; wifiChart.update(); }
   log('🧹 Chart cleared','info');
+}
+
+let _rssiTrackingInterval = null;
+
+function startRssiTracking(bssid, label) {
+  // Stop any existing tracking
+  if (_rssiTrackingInterval) { clearInterval(_rssiTrackingInterval); _rssiTrackingInterval = null; }
+
+  // Ensure this network is selected
+  ble.selectedNet = bssid;
+
+  // Push initial point
+  const net = _lastNetworks.find(n => n.bssid === bssid);
+  if (net && net.rssi != null) pushChartPoint(net.rssi, label);
+
+  // Start continuous tracking — poll every 2 seconds
+  _rssiTrackingInterval = setInterval(() => {
+    const n = _lastNetworks.find(x => x.bssid === bssid);
+    if (n && n.rssi != null) pushChartPoint(n.rssi, label);
+  }, 2000);
+
+  // Also trigger a repeating scan if not already scanning
+  if (!ble.scanning) wifiScan();
+
+  // Open the Monitor section and scroll to chart
+  const monitorSection = document.querySelector('.section-monitor')?.closest('details');
+  if (monitorSection && !monitorSection.open) monitorSection.open = true;
+  setTimeout(() => {
+    const chart = document.getElementById('bleChart');
+    if (chart) chart.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 200);
+
+  log('📊 Tracking RSSI for ' + label, 'success');
+}
+
+function stopRssiTracking() {
+  if (_rssiTrackingInterval) { clearInterval(_rssiTrackingInterval); _rssiTrackingInterval = null; }
+  log('📊 RSSI tracking stopped', 'info');
 }
 
 function exportChartData() {
@@ -1848,7 +1910,7 @@ function _injectBandFilterButtons() {
 
   bands.forEach(b => {
     const btn = document.createElement('button');
-    btn.className = 'wifi-band-filter-btn button btn-sm' + (b.value === ble.bandFilter ? ' active' : '');
+    btn.className = 'wifi-band-btn button btn-sm' + (b.value === ble.bandFilter ? ' active' : '');
     btn.textContent = b.label;
     btn.dataset.band = b.value;
     btn.onclick = () => setBandFilter(b.value);
@@ -1897,9 +1959,26 @@ function removeMultiDevice() {}
 function renderMultiDevices() {}
 function syncAutoReconnect() { syncFilterEvents(); }
 function exportDevicesCSV() { exportNetworksCSV(); }
+function simulateDevices() { simulateNetworks(); }
 function startWatchMode() { log('Watch mode not applicable to WiFi scanning.','info'); }
 function stopWatchMode() {}
 function copyUUID() {}
+
+function clearDebugLog() {
+  const el = document.getElementById('debugLogBody');
+  if (el) el.innerHTML = '<div class="wifi-empty">Log cleared.</div>';
+  log('🧹 Debug log cleared','info');
+}
+
+function exportDebugLog() {
+  const el = document.getElementById('debugLogBody');
+  const text = el ? el.innerText : '';
+  if (!text.trim()) { log('No debug log to export','error'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:'text/plain'}));
+  a.download = 'wifi_debug_' + Date.now() + '.txt'; a.click();
+  log('💾 Debug log exported','success');
+}
 
 /* ═══════════════════════════════════
    UTILS — expose globals for HTML
@@ -1917,6 +1996,8 @@ window.toggleProximitySound = toggleProximitySound;
 window.toggleFavorite = toggleFavorite;
 window.clearChart = clearChart;
 window.exportChartData = exportChartData;
+window.startRssiTracking = startRssiTracking;
+window.stopRssiTracking = stopRssiTracking;
 window.exportLogsFromBackend = exportLogsFromBackend;
 window.exportNetworksCSV = exportNetworksCSV;
 window.exportDebugSnapshot = exportDebugSnapshot;
@@ -1924,6 +2005,12 @@ window.requestChannelAnalysis = requestChannelAnalysis;
 window.requestBestChannel = requestBestChannel;
 window.renderNetworkSummary = renderNetworkSummary;
 window.clearCacheReload = clearCacheReload;
+window.clearDebugLog = clearDebugLog;
+window.exportDebugLog = exportDebugLog;
+window.simulateDevices = simulateDevices;
+window.exportDevicesCSV = exportDevicesCSV;
+window.showRadarDetail = showRadarDetail;
+window._copyNetworkInfo = _copyNetworkInfo;
 window.bleScan = bleScan;
 window.bleStopScan = bleStopScan;
 window.renderDeviceList = renderDeviceList;

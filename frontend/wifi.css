@@ -458,6 +458,46 @@ details.section-debug > summary .icon { color: #6b7280; }
 }
 .wifi-channel-canvas-wrap canvas { width:100%; height:100%; }
 
+.wifi-channel-section { margin-bottom:16px; }
+.wifi-channel-title {
+  font-family:'Orbitron',monospace; font-size:.78rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:.06em; color:#38bdf8;
+  margin-bottom:8px; padding:0 4px;
+}
+.wifi-channel-bars {
+  display:flex; align-items:flex-end; gap:3px; height:120px;
+  padding:4px; background:rgba(0,0,0,.2); border-radius:8px;
+}
+.wifi-channel-bar-wrap {
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  justify-content:flex-end; height:100%;
+}
+.wifi-channel-bar {
+  width:100%; min-height:4px; border-radius:3px 3px 0 0;
+  background:#3b82f6; position:relative; transition:height .3s;
+}
+.wifi-ch-nonoverlap { outline:2px solid #22c55e; outline-offset:1px; }
+.wifi-ch-best { outline:2px solid #fbbf24; outline-offset:1px; box-shadow:0 0 8px rgba(251,191,36,.4); }
+.wifi-channel-count {
+  position:absolute; top:-16px; left:50%; transform:translateX(-50%);
+  font-size:.6rem; font-weight:700; color:var(--text,#e2e8f0);
+  font-family:'Courier New',monospace;
+}
+.wifi-channel-label {
+  font-size:.55rem; color:var(--text-dim,#94a3b8); margin-top:4px;
+  font-family:'Courier New',monospace; white-space:nowrap;
+}
+.wifi-ch-best-label { color:#fbbf24; font-weight:700; }
+.wifi-channel-rec {
+  margin-top:8px; padding:6px 10px; border-radius:6px;
+  background:rgba(251,191,36,.1); border:1px solid rgba(251,191,36,.3);
+  font-size:.82rem; color:#fbbf24;
+}
+.wifi-channel-rec strong { color:#fde68a; }
+.wifi-channel-total {
+  font-size:.7rem; color:var(--text-dim,#94a3b8); margin-top:4px; padding:0 4px;
+}
+
 .wifi-best-channel {
   display:flex; align-items:center; gap:8px; padding:6px 4px;
 }
