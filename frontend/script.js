@@ -30,7 +30,10 @@ let audioCtx;
 
 function playSound(type) {
   if (!soundEnabled) return;
-  if (!audioCtx) audioCtx = new AudioCtx();
+  try {
+    if (!audioCtx) audioCtx = new AudioCtx();
+    if (audioCtx.state === 'suspended') { audioCtx.resume().catch(() => {}); return; }
+  } catch { return; }
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.connect(gain);
@@ -779,6 +782,7 @@ function initGhostUsers() {
       const d = JSON.parse(e.newValue);
       if (d.id === myGhostId) return;
       ghosts[d.id] = { x: d.x, y: d.y, ts: d.ts };
+      requestAnimationFrame(drawGhosts);
     } catch {}
   });
 
@@ -802,9 +806,11 @@ function initGhostUsers() {
       ghostCtx.fill();
     }
     ghostCtx.globalAlpha = 1;
-    requestAnimationFrame(drawGhosts);
+    if (Object.keys(ghosts).length > 0) {
+      requestAnimationFrame(drawGhosts);
+    }
   }
-  requestAnimationFrame(drawGhosts);
+  // Only start loop when ghosts are present (triggered by BroadcastChannel messages)
 }
 
 /* ═══════ MUSICAL THEME SWITCHER ═══════ */
@@ -823,7 +829,10 @@ const THEME_MELODIES = {
 
 function playThemeMelody(themeName) {
   if (!soundEnabled) return;
-  if (!audioCtx) audioCtx = new AudioCtx();
+  try {
+    if (!audioCtx) audioCtx = new AudioCtx();
+    if (audioCtx.state === 'suspended') { audioCtx.resume().catch(() => {}); return; }
+  } catch { return; }
   const notes = THEME_MELODIES[themeName];
   if (!notes) return;
   const t = audioCtx.currentTime;

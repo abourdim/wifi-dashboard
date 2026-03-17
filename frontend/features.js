@@ -225,6 +225,7 @@ function _renderHeatmap() {
   const dpr = 2;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
+  if (!w || !h) return;
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   ctx.scale(dpr, dpr);
@@ -438,6 +439,13 @@ const _colocData = {}; // { "bssidA|bssidB": count }
 
 function _trackCoLocation(networks) {
   if (!networks || networks.length < 2) return;
+  // Cap co-location entries to prevent O(N^2) growth over time
+  const keys = Object.keys(_colocData);
+  if (keys.length > 500) {
+    // Prune lowest-count entries
+    keys.sort((a, b) => _colocData[a] - _colocData[b]);
+    keys.slice(0, 200).forEach(k => delete _colocData[k]);
+  }
   const addrs = networks.slice(0, 15).map(n => n.bssid).filter(Boolean);
   for (let i = 0; i < addrs.length; i++) {
     for (let j = i + 1; j < addrs.length; j++) {
@@ -454,6 +462,7 @@ function _renderCoLocationGraph() {
   const dpr = 2;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
+  if (!w || !h) return;
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   ctx.scale(dpr, dpr);
@@ -538,13 +547,16 @@ let _soundscapeCtx = null;
 function toggleSoundscape() {
   _soundscapeActive = !_soundscapeActive;
   const btn = document.getElementById('soundscapeBtn');
-  if (btn) btn.classList.toggle('active', _soundscapeActive);
+  if (btn) {
+    btn.classList.toggle('active', _soundscapeActive);
+    btn.textContent = _soundscapeActive ? '🔇 Disable' : '🔊 Enable';
+  }
   const viz = document.getElementById('soundViz');
   if (viz) viz.style.display = _soundscapeActive ? 'flex' : 'none';
 
   if (!_soundscapeActive && _soundscapeCtx) {
-    _soundscapeCtx.close();
-    _soundscapeCtx = null;
+    // Suspend instead of close to avoid hitting browser AudioContext limits
+    _soundscapeCtx.suspend().catch(() => {});
   }
 }
 
@@ -553,7 +565,7 @@ function _playSoundSignature(networks) {
   try {
     if (!_soundscapeCtx) _soundscapeCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = _soundscapeCtx;
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
     // Play a tone for up to 5 strongest networks
     const sorted = networks.slice().sort((a, b) => (b.rssi||0) - (a.rssi||0)).slice(0, 5);
@@ -580,6 +592,50 @@ function _playSoundSignature(networks) {
       osc.stop(ctx.currentTime + 0.3 + i * 0.08);
     });
   } catch {}
+}
+
+function _renderSoundViz(networks) {
+  const viz = document.getElementById('soundViz');
+  if (!viz || viz.style.display === 'none') return;
+  if (!networks || !networks.length) return;
+
+  const sorted = networks.slice().sort((a, b) => (b.rssi||0) - (a.rssi||0)).slice(0, 8);
+  let html = '<div style="display:flex;gap:4px;align-items:flex-end;height:50px">';
+  sorted.forEach(n => {
+    const rssi = n.rssi || -100;
+    const pct = Math.max(8, ((rssi + 100) / 70) * 100);
+    const sec = (n.security || '').toUpperCase();
+    let color = '#38bdf8'; // sine = default
+    if (sec.includes('WPA3')) color = '#34d399';
+    else if (sec.includes('WPA2')) color = '#fb923c';
+    else if (sec.includes('WEP')) color = '#ef4444';
+    else if (sec === 'OPEN' || sec === 'NONE' || !sec) color = '#f43f5e';
+    html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">' +
+      '<div style="width:100%;background:' + color + ';opacity:.7;border-radius:3px 3px 0 0;height:' + pct + '%;min-height:4px;transition:height .3s"></div>' +
+      '<div style="font-size:6px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48px">' + _escH(n.ssid || '?') + '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+  viz.innerHTML = html;
+
+  // Also render into soundSignatures container
+  const sigEl = document.getElementById('soundSignatures');
+  if (sigEl) {
+    let sigHtml = '';
+    sorted.forEach(n => {
+      const sec = (n.security || '').toUpperCase();
+      let wave = 'sine', color = '#38bdf8';
+      if (sec.includes('WPA3')) { wave = 'triangle'; color = '#34d399'; }
+      else if (sec.includes('WPA2')) { wave = 'square'; color = '#fb923c'; }
+      else if (sec.includes('WEP')) { wave = 'sawtooth'; color = '#ef4444'; }
+      const freq = Math.round(200 + (((n.rssi||0) + 100) / 70) * 600);
+      sigHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:.65rem;border-bottom:1px solid rgba(255,255,255,.04)">' +
+        '<span style="color:#e2e8f0">' + _escH(n.ssid || n.bssid) + '</span>' +
+        '<span style="color:' + color + ';font-family:monospace;font-size:.6rem">' + wave + ' ' + freq + 'Hz</span>' +
+      '</div>';
+    });
+    sigEl.innerHTML = sigHtml;
+  }
 }
 
 /* ═══════════════════════════════════
@@ -620,12 +676,14 @@ function _updateAnalytics(networks) {
 function _renderVendorPie(networks) {
   const canvas = document.getElementById('vendorPieCanvas');
   if (!canvas || !networks?.length) return;
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  if (!cw || !ch) return;
   const ctx = canvas.getContext('2d');
   const dpr = 2;
-  canvas.width = canvas.clientWidth * dpr;
-  canvas.height = canvas.clientHeight * dpr;
+  canvas.width = cw * dpr;
+  canvas.height = ch * dpr;
   ctx.scale(dpr, dpr);
-  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const w = cw, h = ch;
   ctx.clearRect(0, 0, w, h);
 
   // Count vendors
@@ -665,12 +723,14 @@ function _renderVendorPie(networks) {
 function _renderRssiHistogram(networks) {
   const canvas = document.getElementById('rssiHistCanvas');
   if (!canvas || !networks?.length) return;
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  if (!cw || !ch) return;
   const ctx = canvas.getContext('2d');
   const dpr = 2;
-  canvas.width = canvas.clientWidth * dpr;
-  canvas.height = canvas.clientHeight * dpr;
+  canvas.width = cw * dpr;
+  canvas.height = ch * dpr;
   ctx.scale(dpr, dpr);
-  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const w = cw, h = ch;
   ctx.clearRect(0, 0, w, h);
 
   // Bucket RSSI values: -100 to -20, 10dBm buckets
@@ -745,13 +805,23 @@ function _analyzeThreats(networks) {
   _threats = [];
   const now = Date.now();
 
-  // Build SSID -> BSSID map for evil twin detection
+  // Rebuild SSID -> BSSID map fresh each scan (prevents false positives from stale data)
+  const currentSsidMap = {};
   networks.forEach(n => {
     const ssid = n.ssid || '';
     const bssid = n.bssid || '';
     if (!ssid || !bssid) return;
+    if (!currentSsidMap[ssid]) currentSsidMap[ssid] = new Set();
+    currentSsidMap[ssid].add(bssid);
+  });
+  // Merge into persistent map but cap per-SSID at 20 BSSIDs
+  Object.keys(currentSsidMap).forEach(ssid => {
     if (!_ssidBssidMap[ssid]) _ssidBssidMap[ssid] = new Set();
-    _ssidBssidMap[ssid].add(bssid);
+    currentSsidMap[ssid].forEach(b => _ssidBssidMap[ssid].add(b));
+    if (_ssidBssidMap[ssid].size > 20) {
+      const arr = [..._ssidBssidMap[ssid]];
+      _ssidBssidMap[ssid] = new Set(arr.slice(-20));
+    }
   });
 
   // Check 1: Open networks (no encryption)
@@ -762,7 +832,7 @@ function _analyzeThreats(networks) {
         type: 'warning',
         icon: '\u{1F513}',
         title: 'Open Network',
-        desc: (n.ssid || n.bssid) + ' \u2014 no encryption, data sent in plaintext',
+        desc: _escH(n.ssid || n.bssid) + ' \u2014 no encryption, data sent in plaintext',
         ts: now
       });
     }
@@ -776,7 +846,7 @@ function _analyzeThreats(networks) {
         type: 'danger',
         icon: '\u{1F510}',
         title: 'WEP Encryption (Weak)',
-        desc: (n.ssid || n.bssid) + ' \u2014 WEP is trivially crackable, avoid this network',
+        desc: _escH(n.ssid || n.bssid) + ' \u2014 WEP is trivially crackable, avoid this network',
         ts: now
       });
     }
@@ -789,7 +859,7 @@ function _analyzeThreats(networks) {
         type: 'info',
         icon: '\u{1F575}',
         title: 'Hidden SSID',
-        desc: (n.bssid || '??') + ' \u2014 network is hiding its name, could be suspicious',
+        desc: _escH(n.bssid || '??') + ' \u2014 network is hiding its name, could be suspicious',
         ts: now
       });
     }
@@ -806,7 +876,7 @@ function _analyzeThreats(networks) {
           type: 'danger',
           icon: '\u{1F47B}',
           title: 'Possible Evil Twin',
-          desc: '"' + ssid + '" seen from ' + bssids.size + ' APs with different vendors \u2014 possible rogue AP',
+          desc: '"' + _escH(ssid) + '" seen from ' + bssids.size + ' APs with different vendors \u2014 possible rogue AP',
           ts: now
         });
       }
@@ -820,7 +890,7 @@ function _analyzeThreats(networks) {
         type: 'warning',
         icon: '\u{1F4E1}',
         title: 'Very Strong Signal',
-        desc: (n.ssid || n.bssid) + ' at ' + n.rssi + ' dBm \u2014 AP is very close',
+        desc: _escH(n.ssid || n.bssid) + ' at ' + n.rssi + ' dBm \u2014 AP is very close',
         ts: now
       });
     }
@@ -920,7 +990,7 @@ ${MISSIONS.map(m => {
 </table>
 
 <h2>\u{1F6E1} Threat Summary</h2>
-<p>${_threats.length ? _threats.map(t => t.icon + ' ' + t.title + ': ' + t.desc).join('<br>') : '\u2705 No threats detected'}</p>
+<p>${_threats.length ? _threats.map(t => _escH(t.icon + ' ' + t.title) + ': ' + t.desc).join('<br>') : '\u2705 No threats detected'}</p>
 
 <footer>WiFi Dashboard v1.0 \u2014 Scan Report generated ${now.toLocaleString()}</footer>
 </body></html>`;
@@ -1039,10 +1109,12 @@ let _packetAnimFrame = null;
 let _packetCount = 0;
 
 function _addPacketBurst(count) {
+  if (_packets.length > 500) return; // cap to prevent unbounded growth
   const canvas = document.getElementById('packetStormCanvas');
   if (!canvas) return;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
+  if (!w || !h) return; // Skip when collapsed — particles would spawn at (0,0)
   const colors = ['#38bdf8','#22c55e','#f59e0b','#ef4444','#2dd4bf','#0ea5e9'];
   for (let i = 0; i < count; i++) {
     _packets.push({
@@ -1066,6 +1138,7 @@ function _renderPacketStorm() {
   const dpr = 2;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
+  if (!w || !h) { _packetAnimFrame = null; return; }
   if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
     canvas.width = w * dpr;
     canvas.height = h * dpr;
@@ -1111,8 +1184,21 @@ function _renderPacketStorm() {
   const statsEl = document.getElementById('packetStormStats');
   if (statsEl) statsEl.textContent = _packetCount + ' pkts | ' + _packets.length + ' active';
 
-  _packetAnimFrame = requestAnimationFrame(_renderPacketStorm);
+  // Only continue animation if canvas is visible
+  const stormCanvas = document.getElementById('packetStormCanvas');
+  if (stormCanvas && stormCanvas.offsetParent) {
+    _packetAnimFrame = requestAnimationFrame(_renderPacketStorm);
+  } else {
+    _packetAnimFrame = null;
+  }
 }
+
+// Restart packet storm animation when Hacker Lab section opens
+document.addEventListener('toggle', (e) => {
+  if (e.target.classList && e.target.classList.contains('section-lab') && e.target.open) {
+    if (!_packetAnimFrame) _packetAnimFrame = requestAnimationFrame(_renderPacketStorm);
+  }
+}, true);
 
 /* ═══════════════════════════════════
    TIME TRAVEL SCANNER
@@ -1259,6 +1345,7 @@ function _renderRfWaterfall() {
   const dpr = 2;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
+  if (!w || !h) return;
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   ctx.scale(dpr, dpr);
@@ -1422,18 +1509,19 @@ function _renderScanDiff(currentNetworks) {
       '<span class="diff-stat same">=' + same.length + ' same</span>';
   }
 
-  container.innerHTML = '';
+  let diffHtml = '';
   added.forEach(n => {
-    container.innerHTML += '<div class="diff-item add"><span class="diff-marker">+</span>' + _escH(n.ssid) + ' <span style="opacity:.5">' + n.rssi + ' dBm</span></div>';
+    diffHtml += '<div class="diff-item add"><span class="diff-marker">+</span>' + _escH(n.ssid) + ' <span style="opacity:.5">' + n.rssi + ' dBm</span></div>';
   });
   removed.forEach(n => {
-    container.innerHTML += '<div class="diff-item rem"><span class="diff-marker">-</span>' + _escH(n.ssid) + '</div>';
+    diffHtml += '<div class="diff-item rem"><span class="diff-marker">-</span>' + _escH(n.ssid) + '</div>';
   });
   changed.forEach(n => {
     const arrow = n.rssiDiff > 0 ? '\u25B2' : '\u25BC';
     const color = n.rssiDiff > 0 ? '#22c55e' : '#ef4444';
-    container.innerHTML += '<div class="diff-item chg"><span class="diff-marker">~</span>' + _escH(n.ssid) + ' <span style="color:' + color + '">' + arrow + Math.abs(n.rssiDiff) + 'dB</span></div>';
+    diffHtml += '<div class="diff-item chg"><span class="diff-marker">~</span>' + _escH(n.ssid) + ' <span style="color:' + color + '">' + arrow + Math.abs(n.rssiDiff) + 'dB</span></div>';
   });
+  container.innerHTML = diffHtml;
 
   // Save current as previous for next diff
   _previousScanNetworks = Array.from(curr.values());
@@ -1448,44 +1536,37 @@ function _escH(s) { const d = document.createElement('div'); d.textContent = s |
    HOOKS — intercept scan results to feed all features
    ═══════════════════════════════════ */
 function _initFeatureHooks() {
-  // Hook directly into WebSocket messages
-  const wsCheck = setInterval(() => {
-    if (typeof ble !== 'undefined' && ble.ws && ble.ws.onmessage) {
-      const origHandler = ble.ws.onmessage;
-      ble.ws.onmessage = function(ev) {
-        try {
-          const msg = JSON.parse(ev.data);
-          _handleFeatureEvent(msg);
-        } catch {}
-        return origHandler.call(this, ev);
-      };
-      clearInterval(wsCheck);
-    }
-  }, 500);
-  setTimeout(() => clearInterval(wsCheck), 10000);
+  // Data flow: wifi.js wsHandle() calls window._handleFeatureEvent() directly
+  // No monkey-patching needed — see wifi.js scan_result handler
 
-  // Also hook wifiScan for mission counting
+  // Hook wifiScan for mission counting
   const origScan = window.wifiScan;
   if (origScan) {
-    const currentScan = window.wifiScan;
     window.wifiScan = async function() {
       _incMission('scan_count');
-      return currentScan.apply(this, arguments);
+      return origScan.apply(this, arguments);
     };
   }
 
   // Hook into renderRadarBlips to update constellation lines and HUD
-  const origRender = window.renderRadarBlips;
-  if (origRender) {
-    window.renderRadarBlips = function(networks) {
-      const result = origRender.apply(this, arguments);
-      setTimeout(() => {
-        _updateConstellationLines();
-        _updateHudThreat(networks ? networks.length : 0);
-      }, 100);
-      return result;
-    };
-  }
+  // Retry in case wifi.js hasn't exported it yet
+  const hookRadar = () => {
+    const origRender = window.renderRadarBlips;
+    if (origRender && !origRender._featHooked) {
+      window.renderRadarBlips = function(networks) {
+        const result = origRender.apply(this, arguments);
+        setTimeout(() => {
+          _updateConstellationLines();
+          _updateHudThreat(networks ? networks.length : 0);
+        }, 100);
+        return result;
+      };
+      window.renderRadarBlips._featHooked = true;
+    }
+  };
+  hookRadar();
+  setTimeout(hookRadar, 1000);
+  setTimeout(hookRadar, 3000);
 
   // Scan minute tracker for marathon mission
   setInterval(() => {
@@ -1522,6 +1603,7 @@ function _handleFeatureEvent(msg) {
     _updateAnalytics(mapped);
     _analyzeThreats(mapped);
     _playSoundSignature(mapped);
+    _renderSoundViz(mapped);
     // Hacker Lab features
     _addPacketBurst(mapped.length * 2);
     _addTimeTravelSnapshot(mapped);
@@ -1537,7 +1619,7 @@ function _handleFeatureEvent(msg) {
 
     // Terminal log
     const namedNets = mapped.filter(n => n.ssid && n.ssid !== '?');
-    _termLog('scan', mapped.length + ' networks found \u2014 ' + namedNets.map(n => n.ssid).slice(0,5).join(', ') + (namedNets.length > 5 ? '...' : ''));
+    _termLog('scan', mapped.length + ' networks found \u2014 ' + namedNets.map(n => _escH(n.ssid)).slice(0,5).join(', ') + (namedNets.length > 5 ? '...' : ''));
 
     // Mission tracking
     const data = _loadMissions();
@@ -1602,6 +1684,7 @@ function _handleFeatureEvent(msg) {
     data.total_unique = Object.keys(_leaderboardNetworks).length;
 
     _saveMissions(data);
+    _renderMissions(); // Update UI immediately after mission progress
   }
 }
 
@@ -1652,3 +1735,7 @@ window.toggleSoundscape = toggleSoundscape;
 window.onTimeTravelSlide = onTimeTravelSlide;
 window.exportScanReport = exportScanReport;
 window.showDeviceAutopsy = showDeviceAutopsy;
+window._handleFeatureEvent = _handleFeatureEvent;
+window.promptNickname = promptNickname;
+window.generateDeviceDNA = generateDeviceDNA;
+window._getNickname = _getNickname;

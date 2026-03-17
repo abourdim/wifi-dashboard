@@ -150,7 +150,7 @@ const _debug = {
    NETWORK HISTORY & FAVORITES
    ═══════════════════════════════════ */
 const _networkHistory = new Map(); // bssid -> {network, firstSeen, lastSeen, rssiHistory}
-const _favorites = new Set(JSON.parse(localStorage.getItem('wifi-favorites') || '[]'));
+const _favorites = new Set((() => { try { return JSON.parse(localStorage.getItem('wifi-favorites') || '[]'); } catch { return []; } })());
 
 function toggleFavorite(bssid) {
   if (_favorites.has(bssid)) _favorites.delete(bssid);
@@ -220,7 +220,7 @@ function _renderTimeline() {
    HELPERS
    ═══════════════════════════════════ */
 function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 /** Friendly display name for a vendor string */
@@ -445,7 +445,7 @@ function wsConnect() {
       setTimeout(wsConnect, 3000);
     };
     ble.ws.onerror = () => {};
-    ble.ws.onmessage = (ev) => wsHandle(JSON.parse(ev.data));
+    ble.ws.onmessage = (ev) => { try { wsHandle(JSON.parse(ev.data)); } catch(e) { console.error('WS message error:', e); } };
   } catch(e) { log('WS init failed: '+e.message,'error'); }
 }
 
@@ -461,7 +461,7 @@ function _wsConnectTo(url) {
     };
     ble.ws.onclose = () => { ble.wsConnected = false; _wsRetries++; setTimeout(wsConnect, 3000); };
     ble.ws.onerror = () => {};
-    ble.ws.onmessage = (ev) => wsHandle(JSON.parse(ev.data));
+    ble.ws.onmessage = (ev) => { try { wsHandle(JSON.parse(ev.data)); } catch(e) { console.error('WS message error:', e); } };
   } catch(e) { setTimeout(wsConnect, 3000); }
 }
 
@@ -469,7 +469,10 @@ function wsSend(obj) {
   if (ble.ws && ble.ws.readyState === 1) {
     ble.ws.send(JSON.stringify(obj));
     log('TX → '+obj.type,'tx');
+    return true;
   }
+  log('⚠️ Not connected — ' + obj.type + ' dropped','error');
+  return false;
 }
 
 function wsHandle(msg) {
@@ -490,6 +493,9 @@ function wsHandle(msg) {
           if (sel.rssi != null) pushChartPoint(sel.rssi, sel.ssid || sel.bssid);
         }
       }
+      // Feed features and badges directly (no monkey-patching)
+      if (typeof window._handleFeatureEvent === 'function') try { window._handleFeatureEvent(msg); } catch(e) { console.error('Feature event error:', e); }
+      if (typeof window._handleBadgeEvent === 'function') try { window._handleBadgeEvent(msg); } catch(e) { console.error('Badge event error:', e); }
       break;
     }
     case 'channel_analysis': {
@@ -527,6 +533,13 @@ function wsHandle(msg) {
 let _scanTimer = null;
 
 function wifiScan() {
+  // Clear any existing scan timer to prevent parallel scan loops
+  if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null; }
+  if (!ble.ws || ble.ws.readyState !== 1) {
+    log('⚠️ Cannot scan — backend not connected','error');
+    if (typeof showToast === 'function') showToast('Not connected to backend', 2000);
+    return;
+  }
   toggleScanBtns(true);
   ble.scanActive = true;
   showToast('Scanning...', 0);
@@ -534,6 +547,11 @@ function wifiScan() {
 }
 
 function _doScan() {
+  // Stop scan loop if WS disconnected
+  if (!ble.ws || ble.ws.readyState !== 1) {
+    wifiStopScan();
+    return;
+  }
   const ssidFilter = (document.getElementById('deviceNameFilter')||{}).value || '';
   const rssiMin    = parseInt((document.getElementById('rssiFilter')||{}).value || '-90', 10);
   const band       = ble.bandFilter !== 'all' ? ble.bandFilter : undefined;
@@ -568,10 +586,8 @@ function simulateNetworks() {
   log('🎲 Requesting simulated WiFi scan...','info');
   wsSend({type:'scan', simulate:true});
   _timelineEvent('Simulate', 'Simulated scan requested', 'info');
-  // Trigger feature event hook if available
-  if (typeof _handleFeatureEvent === 'function') {
-    try { _handleFeatureEvent('simulate', { type:'wifi_scan' }); } catch(e) {}
-  }
+  // Note: simulated scan results arrive via WebSocket as normal scan_result messages,
+  // which feed features/badges via wsHandle() automatically
 }
 
 /* ═══════════════════════════════════
@@ -741,6 +757,7 @@ function renderNetworkList(networks) {
    NETWORK SELECTION & DETAIL PANEL
    ═══════════════════════════════════ */
 function selectNetwork(n) {
+  if (!n) return;
   ble.selectedNet = n.bssid;
   // Update row highlighting
   document.querySelectorAll('.wifi-network-row').forEach(r => r.classList.remove('wifi-selected'));
@@ -753,17 +770,34 @@ function selectNetwork(n) {
   // Update header title
   const titleEl = document.getElementById('connectedDeviceName');
   if (titleEl) titleEl.textContent = n.ssid || n.bssid || 'Unknown Network';
-  // Auto-open the Network Details panel
+  // Auto-open all cards first, then render and scroll
+  document.querySelectorAll('details.collapsible').forEach(d => {
+    if (!d.open) d.open = true;
+  });
+
   const detailsPanel = document.getElementById('explorerDetails');
-  if (detailsPanel && !detailsPanel.open) detailsPanel.open = true;
-  // Render detail panel
-  _renderNetworkDetail(n);
+  if (detailsPanel) {
+    _renderNetworkDetail(n);
+    // Single scroll after layout settles
+    setTimeout(() => detailsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+  } else {
+    _renderNetworkDetail(n);
+  }
+
   // Push RSSI to chart when selecting
   if (n.rssi != null) {
     pushChartPoint(n.rssi, n.ssid || n.bssid);
   }
   playSound('click');
   log('📋 Selected: ' + (n.ssid || n.bssid),'info');
+
+  // Auto-start RSSI tracking (without triggering new scan)
+  _startRssiTrackingQuiet(n.bssid, n.ssid || n.bssid);
+
+  // Auto-run channel analysis
+  if (typeof requestChannelAnalysis === 'function') {
+    requestChannelAnalysis();
+  }
 }
 
 function _renderNetworkDetail(n) {
@@ -825,14 +859,108 @@ function _renderNetworkDetail(n) {
   }
   html += '</div>';
 
-  // Action buttons
+  // Action buttons — avoid inline onclick with user-controlled strings (SSIDs may contain quotes)
   html += '<div class="wifi-detail-actions">' +
-    '<button class="button btn-sm primary" onclick="startRssiTracking(\'' + esc(n.bssid||'') + '\', \'' + esc(n.ssid || n.bssid || '') + '\')">📊 Track RSSI</button>' +
+    '<button class="button btn-sm primary" id="_trackRssiBtn">📊 Track RSSI</button>' +
     '<button class="button btn-sm" onclick="_copyNetworkInfo()">📋 Copy Info</button>' +
     '</div>';
 
   html += '</div>';
   el.innerHTML = html;
+
+  // Attach Track RSSI handler safely (avoids inline onclick with user-controlled strings)
+  const trackBtn = document.getElementById('_trackRssiBtn');
+  if (trackBtn) {
+    const _bssid = n.bssid || '';
+    const _label = n.ssid || n.bssid || '';
+    trackBtn.onclick = () => startRssiTracking(_bssid, _label);
+  }
+
+  // Render signal history mini-chart on the signalHistoryChart canvas
+  _renderSignalHistoryChart(rssiHist);
+}
+
+function _renderSignalHistoryChart(rssiHist) {
+  const canvas = document.getElementById('signalHistoryChart');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 2;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  if (!w || !h) return;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  if (!rssiHist || rssiHist.length < 2) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Need more scans for history', w / 2, h / 2);
+    return;
+  }
+
+  const pad = { top: 10, right: 10, bottom: 20, left: 35 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+  const minR = Math.min(...rssiHist);
+  const maxR = Math.max(...rssiHist);
+  const range = Math.max(maxR - minR, 5);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (plotH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    const val = Math.round(maxR - (range / 4) * i);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(val + '', pad.left - 4, y + 3);
+  }
+
+  // Line
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
+  grad.addColorStop(0, '#38bdf8');
+  grad.addColorStop(1, '#0ea5e9');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  rssiHist.forEach((val, i) => {
+    const x = pad.left + (i / (rssiHist.length - 1)) * plotW;
+    const y = pad.top + (1 - (val - minR) / range) * plotH;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Fill under line
+  const lastX = pad.left + plotW;
+  const lastY = pad.top + (1 - (rssiHist[rssiHist.length - 1] - minR) / range) * plotH;
+  ctx.lineTo(lastX, pad.top + plotH);
+  ctx.lineTo(pad.left, pad.top + plotH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(56,189,248,.08)';
+  ctx.fill();
+
+  // Dots
+  rssiHist.forEach((val, i) => {
+    const x = pad.left + (i / (rssiHist.length - 1)) * plotW;
+    const y = pad.top + (1 - (val - minR) / range) * plotH;
+    ctx.beginPath();
+    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fill();
+  });
+
+  // X-axis label
+  ctx.fillStyle = '#64748b';
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Scan #', w / 2, h - 3);
 }
 
 function _detailField(label, value) {
@@ -857,9 +985,20 @@ function _copyNetworkInfo() {
     'Vendor: ' + (_netVendor(n) || 'Unknown'),
     'Hidden: ' + (n.hidden ? 'Yes' : 'No'),
   ].join('\n');
-  navigator.clipboard.writeText(text).then(() => {
-    if (typeof showToast === 'function') showToast('Copied network info!', 1500);
-  }).catch(() => {});
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        if (typeof showToast === 'function') showToast('Copied network info!', 1500);
+      }).catch(() => {});
+    } else {
+      // Fallback for non-HTTPS
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (typeof showToast === 'function') showToast('Copied network info!', 1500);
+    }
+  } catch(e) {}
 }
 
 /* ═══════════════════════════════════
@@ -1036,7 +1175,7 @@ function renderRadarBlips(networks) {
     blip.style.top = y + '%';
     blip.style.animationDelay = (idx * 0.08) + 's';
     blip.title = (n.ssid || 'hidden') + ' — ' + rssi + ' dBm';
-    blip.onclick = (e) => { e.stopPropagation(); showRadarDetail(n); selectNetwork(n); };
+    blip.onpointerdown = (e) => { e.stopPropagation(); e.preventDefault(); showRadarDetail(n); selectNetwork(n); };
 
     blip.innerHTML =
       '<div class="' + dotClass + '" style="background:' + proxColor + ';color:' + proxColor + ';border:2px solid ' + bandColor + '"></div>' +
@@ -1062,8 +1201,7 @@ function showRadarDetail(n) {
   const ssid   = isHidden ? '(Hidden)' : n.ssid;
 
   el.style.display = '';
-  el.style.cursor = 'pointer';
-  el.onclick = () => { selectNetwork(n); };
+  el.onclick = null; // Don't make the whole card clickable — it overlaps blips
   el.innerHTML =
     '<div class="detail-name">' + esc(ssid) + '</div>' +
     '<div class="detail-addr">' + esc(n.bssid || '') + '</div>' +
@@ -1076,8 +1214,14 @@ function showRadarDetail(n) {
     '<div class="detail-row">' +
       '<span class="ble-rssi" style="color:' + color + '">' + bars + ' ' + rssi + ' dBm</span>' +
       '<span class="nrf-rssi-spark">' + spark + '</span>' +
-      '<button class="button btn-sm primary" onclick="selectNetwork(_lastNetworks.find(x=>x.bssid===\'' + esc(n.bssid||'') + '\'))">📋 Details</button>' +
+      '<button class="button btn-sm primary" id="_radarDetailBtn">📋 Details</button>' +
     '</div>';
+
+  // Attach handler safely via closure
+  setTimeout(() => {
+    const detBtn = document.getElementById('_radarDetailBtn');
+    if (detBtn) detBtn.onclick = () => selectNetwork(n);
+  }, 0);
 }
 
 /* ═══════════════════════════════════
@@ -1391,7 +1535,7 @@ function startRssiTracking(bssid, label) {
   }, 2000);
 
   // Also trigger a repeating scan if not already scanning
-  if (!ble.scanning) wifiScan();
+  if (!ble.scanActive) wifiScan();
 
   // Open the Monitor section and scroll to chart
   const monitorSection = document.querySelector('.section-monitor')?.closest('details');
@@ -1407,6 +1551,19 @@ function startRssiTracking(bssid, label) {
 function stopRssiTracking() {
   if (_rssiTrackingInterval) { clearInterval(_rssiTrackingInterval); _rssiTrackingInterval = null; }
   log('📊 RSSI tracking stopped', 'info');
+}
+
+// Quiet version: starts tracking without auto-scan or scroll (used by selectNetwork)
+function _startRssiTrackingQuiet(bssid, label) {
+  if (_rssiTrackingInterval) { clearInterval(_rssiTrackingInterval); _rssiTrackingInterval = null; }
+  ble.selectedNet = bssid;
+  const net = _lastNetworks.find(n => n.bssid === bssid);
+  if (net && net.rssi != null) pushChartPoint(net.rssi, label);
+  _rssiTrackingInterval = setInterval(() => {
+    const n = _lastNetworks.find(x => x.bssid === bssid);
+    if (n && n.rssi != null) pushChartPoint(n.rssi, label);
+  }, 2000);
+  log('📊 Tracking RSSI for ' + label, 'success');
 }
 
 function exportChartData() {
@@ -1777,7 +1934,7 @@ function _initDebugUI() {
     const searchInput = document.getElementById('logSearch');
     searchInput.addEventListener('input', () => {
       const q = searchInput.value.toLowerCase();
-      const entries = document.querySelectorAll('#logContainer .log-entry');
+      const entries = document.querySelectorAll('#logContainer .log-line');
       entries.forEach(e => {
         e.style.display = !q || e.textContent.toLowerCase().includes(q) ? '' : 'none';
       });
@@ -2014,3 +2171,5 @@ window._copyNetworkInfo = _copyNetworkInfo;
 window.bleScan = bleScan;
 window.bleStopScan = bleStopScan;
 window.renderDeviceList = renderDeviceList;
+window.wsConnect = wsConnect;
+window.renderRadarBlips = renderRadarBlips;

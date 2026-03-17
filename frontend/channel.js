@@ -10,14 +10,7 @@
 let _channelData = null; // last channel_analysis response
 let _activeChannelBand = '2.4GHz';
 
-/* ═══════════════════════════════════
-   REQUEST ANALYSIS
-   ═══════════════════════════════════ */
-function requestChannelAnalysis() {
-  if (typeof wsSend === 'function') {
-    wsSend({ type: 'channel_analysis' });
-  }
-}
+/* requestChannelAnalysis is defined in wifi.js (with logging + timeline) */
 
 /* ═══════════════════════════════════
    HANDLE RESPONSE
@@ -42,6 +35,7 @@ function renderChannel24(data) {
   const dpr = 2;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
+  if (!w || !h) return; // Collapsed — will redraw when opened
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   ctx.scale(dpr, dpr);
@@ -120,6 +114,7 @@ function renderChannel5(data) {
   const dpr = 2;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
+  if (!w || !h) return; // Collapsed — will redraw when opened
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   ctx.scale(dpr, dpr);
@@ -226,18 +221,29 @@ function renderCongestionOverview(networks) {
 
   // Quick local analysis for real-time display
   const chCounts = {};
-  for (let c = 1; c <= 13; c++) chCounts[c] = { count: 0, maxRssi: -100 };
+  for (let c = 1; c <= 14; c++) chCounts[c] = { count: 0, maxRssi: -100 };
 
   (networks || []).forEach(n => {
-    if (n.band === '2.4GHz' && n.channel >= 1 && n.channel <= 13) {
+    if (n.channel >= 1 && n.channel <= 14) {
       chCounts[n.channel].count++;
       chCounts[n.channel].maxRssi = Math.max(chCounts[n.channel].maxRssi, n.rssi || -100);
     }
   });
 
+  // 5 GHz channel counts
+  const ch5Counts = {};
+  (networks || []).forEach(n => {
+    const ch = n.channel;
+    if (ch > 14) {
+      if (!ch5Counts[ch]) ch5Counts[ch] = { count: 0, maxRssi: -100 };
+      ch5Counts[ch].count++;
+      ch5Counts[ch].maxRssi = Math.max(ch5Counts[ch].maxRssi, n.rssi || -100);
+    }
+  });
+
   const maxCount = Math.max(...Object.values(chCounts).map(c => c.count), 1);
-  let html = '';
-  for (let ch = 1; ch <= 13; ch++) {
+  let html = '<div style="font-size:.6rem;color:#94a3b8;font-weight:700;margin-bottom:4px">2.4 GHz</div>';
+  for (let ch = 1; ch <= 14; ch++) {
     const info = chCounts[ch];
     const pct = (info.count / maxCount) * 100;
     let color = '#22c55e';
@@ -251,6 +257,27 @@ function renderCongestionOverview(networks) {
       '<span class="congestion-count">' + info.count + '</span>' +
     '</div>';
   }
+
+  // 5 GHz section
+  const ch5List = Object.keys(ch5Counts).map(Number).sort((a, b) => a - b);
+  if (ch5List.length) {
+    const max5 = Math.max(...ch5List.map(c => ch5Counts[c].count), 1);
+    html += '<div style="font-size:.6rem;color:#94a3b8;font-weight:700;margin:8px 0 4px">5 GHz</div>';
+    ch5List.forEach(ch => {
+      const info = ch5Counts[ch];
+      const pct = (info.count / max5) * 100;
+      let color = '#22c55e';
+      if (info.count > 4) color = '#ef4444';
+      else if (info.count > 2) color = '#f97316';
+      else if (info.count > 0) color = '#eab308';
+      html += '<div class="congestion-row">' +
+        '<span class="congestion-ch">' + ch + '</span>' +
+        '<div class="congestion-bar-wrap"><div class="congestion-bar" style="width:' + pct + '%;background:' + color + '"></div></div>' +
+        '<span class="congestion-count">' + info.count + '</span>' +
+      '</div>';
+    });
+  }
+
   el.innerHTML = html;
 }
 
@@ -278,4 +305,14 @@ document.addEventListener('DOMContentLoaded', () => {
       renderChannel5(_channelData.ghz5);
     }
   });
+
+  // Redraw canvases when Channel Analyzer section opens (0x0 when collapsed)
+  document.addEventListener('toggle', (e) => {
+    if (e.target.classList && e.target.classList.contains('section-channel') && e.target.open && _channelData) {
+      setTimeout(() => {
+        renderChannel24(_channelData.ghz24);
+        renderChannel5(_channelData.ghz5);
+      }, 50);
+    }
+  }, true);
 });

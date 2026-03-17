@@ -346,13 +346,14 @@ function _updateGauge(rssi) {
 function _drawFreqMap() {
   const canvas = document.getElementById('freqMapCanvas');
   if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const w = canvas.width = canvas.clientWidth * 2;
-  const h = canvas.height = canvas.clientHeight * 2;
-  ctx.scale(2, 2);
   const cw = canvas.clientWidth;
   const ch = canvas.clientHeight;
+  if (!cw || !ch) return; // Collapsed — will redraw when opened
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const w = canvas.width = cw * 2;
+  const h = canvas.height = ch * 2;
+  ctx.scale(2, 2);
 
   // EM spectrum bands (log scale approximation, visual only)
   const bands = [
@@ -482,10 +483,10 @@ function _initBadgeHooks() {
   if (hour >= 22 || hour < 5) { const d = _loadStats(); d.nightOwl = 1; _saveStats(d); }
   if (hour >= 4 && hour < 7)  { const d = _loadStats(); d.earlyBird = 1; _saveStats(d); }
 
-  // Hook bleScan (kept as bleScan since the global object is still named ble)
-  const origScan = window.bleScan;
+  // Hook wifiScan for scan counting
+  const origScan = window.wifiScan;
   if (origScan) {
-    window.bleScan = async function() {
+    window.wifiScan = async function() {
       _incStat('scans');
       return origScan.apply(this, arguments);
     };
@@ -501,21 +502,19 @@ function _initBadgeHooks() {
     };
   }
 
-  // Hook network detail view (if present)
-  const origDetail = window.showNetworkDetail || window.showDeviceDetail;
-  const detailName = window.showNetworkDetail ? 'showNetworkDetail' : 'showDeviceDetail';
+  // Hook selectNetwork for "Network Spy" badge
+  const origDetail = window.selectNetwork;
   if (origDetail) {
-    window[detailName] = function() {
+    window.selectNetwork = function() {
       _incStat('detailViews');
       return origDetail.apply(this, arguments);
     };
   }
 
-  // Hook channel analysis (if present)
-  const origChannel = window.showChannelAnalysis || window.analyzeChannels;
-  const channelName = window.showChannelAnalysis ? 'showChannelAnalysis' : 'analyzeChannels';
+  // Hook requestChannelAnalysis for "Channel Master" badge
+  const origChannel = window.requestChannelAnalysis;
   if (origChannel) {
-    window[channelName] = function() {
+    window.requestChannelAnalysis = function() {
       const d = _loadStats(); d.channelAnalysis = 1; _saveStats(d);
       _checkAchievements();
       return origChannel.apply(this, arguments);
@@ -523,7 +522,7 @@ function _initBadgeHooks() {
   }
 
   // Hook exportDevicesCSV / exportChartData / exportLogsFromBackend
-  ['exportDevicesCSV', 'exportChartData', 'exportLogsFromBackend'].forEach(fn => {
+  ['exportNetworksCSV', 'exportChartData', 'exportLogsFromBackend', 'exportScanReport'].forEach(fn => {
     const orig = window[fn];
     if (orig) {
       window[fn] = function() {
@@ -533,36 +532,8 @@ function _initBadgeHooks() {
     }
   });
 
-  // Hook into WebSocket messages for event counting
-  // We intercept ble.ws.onmessage (global object is still named ble)
-  const origWsConnect = window.wsConnect;
-  if (origWsConnect) {
-    window.wsConnect = function() {
-      const result = origWsConnect.apply(this, arguments);
-      // After WS connects, hook into message handling
-      _hookWsMessages();
-      return result;
-    };
-  }
-}
-
-function _hookWsMessages() {
-  // Poll until ble.ws is available, then wrap onmessage
-  const check = setInterval(() => {
-    if (typeof ble !== 'undefined' && ble.ws && ble.ws.onmessage) {
-      const origHandler = ble.ws.onmessage;
-      ble.ws.onmessage = function(ev) {
-        try {
-          const msg = JSON.parse(ev.data);
-          _handleBadgeEvent(msg);
-        } catch {}
-        return origHandler.call(this, ev);
-      };
-      clearInterval(check);
-    }
-  }, 500);
-  // Stop checking after 10s
-  setTimeout(() => clearInterval(check), 10000);
+  // Data flow: wifi.js wsHandle() calls window._handleBadgeEvent() directly
+  // No monkey-patching needed
 }
 
 function _handleBadgeEvent(msg) {
@@ -617,11 +588,9 @@ function _handleBadgeEvent(msg) {
       }
 
       // Track open networks for "Security Auditor" badge
-      if (security) {
-        const sec = security.toLowerCase();
-        if (sec === 'open' || sec === 'none' || sec === '' || sec.includes('open')) {
-          const d = _loadStats(); d.openNetworks = 1; _saveStats(d);
-        }
+      const sec = (security || '').toLowerCase();
+      if (sec === 'open' || sec === 'none' || sec === '' || sec.includes('open')) {
+        const d = _loadStats(); d.openNetworks = 1; _saveStats(d);
       }
 
       // Track hidden SSIDs for "Hidden Hunter" badge
@@ -674,5 +643,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Resize freq map on window resize
     window.addEventListener('resize', () => _drawFreqMap());
+
+    // Redraw freq map when Achievements section opens (canvas is 0x0 when collapsed)
+    document.addEventListener('toggle', (e) => {
+      if (e.target.classList && e.target.classList.contains('section-achievements') && e.target.open) {
+        setTimeout(_drawFreqMap, 50);
+      }
+    }, true);
   }, 600);
 });
+
+/* ═══════════════════════════════════
+   EXPOSE GLOBALS
+   ═══════════════════════════════════ */
+window._handleBadgeEvent = _handleBadgeEvent;
+window.quizAnswer = quizAnswer;
