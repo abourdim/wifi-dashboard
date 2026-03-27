@@ -422,12 +422,14 @@ function wsConnect() {
     ble.ws = new WebSocket(url);
     ble.ws.onopen = () => {
       ble.wsConnected = true; _wsRetries = 0;
+      if (typeof setStatus === 'function') setStatus(true);
       _timelineEvent('WS Connected', url, 'success');
       log('🔌 Backend connected ('+url+')','success');
       wsSend({type:'hello', version:'1.0'});
     };
     ble.ws.onclose = () => {
       ble.wsConnected = false;
+      if (typeof setStatus === 'function') setStatus(false);
       _wsRetries++;
       _timelineEvent('WS Disconnected', 'retry #'+_wsRetries, 'error');
       if (_wsRetries >= 2) {
@@ -454,12 +456,13 @@ function _wsConnectTo(url) {
     ble.ws = new WebSocket(url);
     ble.ws.onopen = () => {
       ble.wsConnected = true; _wsRetries = 0;
+      if (typeof setStatus === 'function') setStatus(true);
       log('🔌 Backend connected ('+url+')','success');
       const field = document.getElementById('backendURL');
       if (field) field.value = url;
       wsSend({type:'hello', version:'1.0'});
     };
-    ble.ws.onclose = () => { ble.wsConnected = false; _wsRetries++; setTimeout(wsConnect, 3000); };
+    ble.ws.onclose = () => { ble.wsConnected = false; if (typeof setStatus === 'function') setStatus(false); _wsRetries++; setTimeout(wsConnect, 3000); };
     ble.ws.onerror = () => {};
     ble.ws.onmessage = (ev) => { try { wsHandle(JSON.parse(ev.data)); } catch(e) { console.error('WS message error:', e); } };
   } catch(e) { setTimeout(wsConnect, 3000); }
@@ -496,6 +499,7 @@ function wsHandle(msg) {
       // Feed features and badges directly (no monkey-patching)
       if (typeof window._handleFeatureEvent === 'function') try { window._handleFeatureEvent(msg); } catch(e) { console.error('Feature event error:', e); }
       if (typeof window._handleBadgeEvent === 'function') try { window._handleBadgeEvent(msg); } catch(e) { console.error('Badge event error:', e); }
+      if (typeof window._handlePentestEvent === 'function') try { window._handlePentestEvent(msg); } catch(e) { console.error('Pentest event error:', e); }
       break;
     }
     case 'channel_analysis': {

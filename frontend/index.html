@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="badges.css?v=4" />
   <link rel="stylesheet" href="radar-styles.css?v=4" />
   <link rel="stylesheet" href="features.css?v=4" />
+  <link rel="stylesheet" href="pentest.css?v=1" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
@@ -451,7 +452,95 @@
       </div>
     </details>
 
-    <!-- ══════ CARD 8 — DEBUG TOOLS ══════ -->
+    <!-- ══════ CARD 8 — PEN TEST LAB ══════ -->
+    <details class="collapsible section-pentest">
+      <summary><span class="icon">🔐</span> Pen Test Lab</summary>
+      <div class="card section-pentest">
+
+        <!-- Vulnerability Scorecard -->
+        <div style="padding:8px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div class="pentest-header">🛡️ Vulnerability Scorecard</div>
+          <div id="vulnScorecard">
+            <div style="text-align:center;padding:12px;color:var(--text-dim);font-size:.7rem">Scan networks to generate vulnerability scores</div>
+          </div>
+        </div>
+
+        <!-- Evil Twin Detector -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div class="pentest-header">👻 Evil Twin Detector</div>
+          <div id="evilTwinPanel">
+            <div style="text-align:center;padding:8px;color:var(--text-dim);font-size:.65rem">No evil twin suspects detected</div>
+          </div>
+        </div>
+
+        <!-- Rogue AP Watch -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div class="pentest-header">🎣 Rogue AP Watch</div>
+          <div id="rogueWatchPanel">
+            <div style="text-align:center;padding:8px;color:var(--text-dim);font-size:.65rem">No rogue AP indicators detected</div>
+          </div>
+        </div>
+
+        <!-- Signal Anomaly Detector -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div class="pentest-header">📉 Signal Anomaly Detector</div>
+          <div id="signalAnomalyPanel">
+            <div style="text-align:center;padding:8px;color:var(--text-dim);font-size:.65rem">No signal anomalies detected</div>
+          </div>
+        </div>
+
+        <!-- Attack Surface Map -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div class="pentest-header">🗺️ Attack Surface Map</div>
+          <div class="attack-surface-wrap"><canvas id="attackSurfaceCanvas"></canvas></div>
+          <div class="attack-legend">
+            <span class="attack-legend-item"><span class="attack-legend-dot" style="background:#ef4444"></span> Open</span>
+            <span class="attack-legend-item"><span class="attack-legend-dot" style="background:#f97316"></span> WEP</span>
+            <span class="attack-legend-item"><span class="attack-legend-dot" style="background:#eab308"></span> WPA</span>
+            <span class="attack-legend-item"><span class="attack-legend-dot" style="background:#22c55e"></span> WPA2</span>
+            <span class="attack-legend-item"><span class="attack-legend-dot" style="background:#2dd4bf"></span> WPA3</span>
+            <span style="margin-left:8px;color:#64748b">— same SSID &nbsp; ··· same vendor</span>
+          </div>
+        </div>
+
+        <!-- Channel Warfare -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div class="pentest-header">⚔️ Channel Warfare</div>
+          <div id="channelWarfarePanel">
+            <div style="text-align:center;padding:8px;color:var(--text-dim);font-size:.65rem">No channel warfare issues detected</div>
+          </div>
+        </div>
+
+        <!-- Network Perimeter Monitor -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:0 4px;">
+            <div class="pentest-header" style="margin-bottom:0">📡 Perimeter Monitor</div>
+            <button class="button btn-sm" onclick="_ptSetBaseline()" title="Save current scan as baseline">📌 Set Baseline</button>
+          </div>
+          <div id="perimeterPanel">
+            <div style="text-align:center;padding:8px;color:var(--text-dim);font-size:.65rem">Set a baseline to start monitoring perimeter changes</div>
+          </div>
+        </div>
+
+        <!-- Vendor Threat Intel -->
+        <div style="padding:12px 0; border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
+          <div class="pentest-header">🔍 Vendor Threat Intelligence</div>
+          <div id="vendorIntelPanel">
+            <div style="text-align:center;padding:12px;color:var(--text-dim);font-size:.7rem">Scan networks to analyze vendor security profiles</div>
+          </div>
+        </div>
+
+        <!-- Pen Test Report -->
+        <div style="padding:12px 0; text-align:center">
+          <button class="pentest-report-btn" onclick="_ptExportReport()">
+            🔐 Generate Pen Test Report
+          </button>
+        </div>
+
+      </div>
+    </details>
+
+    <!-- ══════ CARD 9 — DEBUG TOOLS ══════ -->
     <details class="collapsible section-debug">
       <summary><span class="icon">🐛</span> <span data-i18n="debugTitle">Debug Tools</span></summary>
       <div class="card section-debug">
@@ -695,9 +784,10 @@
 </div>
 
 <script src="script.js?v=8"></script>
-<script src="wifi.js?v=17"></script>
+<script src="wifi.js?v=18"></script>
 <script src="badges.js?v=9"></script>
 <script src="features.js?v=12"></script>
 <script src="channel.js?v=9"></script>
+<script src="pentest.js?v=1"></script>
 </body>
 </html>

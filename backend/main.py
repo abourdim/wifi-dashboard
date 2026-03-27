@@ -135,6 +135,15 @@ async def _handle(msg: dict, ws: WebSocket):
         result["type"] = "best_channel"
         await ws.send_text(json.dumps(result))
 
+    elif t == "pentest_analysis":
+        from pentest_analyzer import generate_pentest_summary
+        from vendor_intel import enrich_networks
+        networks = wifi_manager.last_networks if wifi_manager else []
+        enriched = enrich_networks(networks)
+        summary = generate_pentest_summary(enriched)
+        summary["type"] = "pentest_analysis"
+        await ws.send_text(json.dumps(summary))
+
     elif t == "set_log_format":
         fmt = msg.get("format", "both")
         wifi_logger.set_format(fmt)
